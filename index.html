@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AEVO Prüfungsfragen-Trainer</title>
+  <style>
+    :root {
+      --bg: #f5f7fb; --card: #ffffff; --text: #1f2937; --muted: #6b7280; --line: #dbe3ef;
+      --accent: #2563eb; --accent-2: #1d4ed8; --good-bg: #ecfdf5; --good-line: #10b981;
+      --bad-bg: #fef2f2; --bad-line: #ef4444; --warn-bg: #fffbeb; --warn-line: #f59e0b;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 220px); color: var(--text);
+    }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 24px 16px 48px; }
+    .hero, .card, .question-card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 24px; padding: 24px;
+      box-shadow: var(--shadow); margin-bottom: 20px;
+    }
+    h1, h2, h3 { margin-top: 0; }
+    p { line-height: 1.55; }
+    .muted { color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 18px; }
+    .card { border-radius: 20px; padding: 18px; }
+    .hf-card { cursor: pointer; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; height: 100%; }
+    .hf-card:hover { transform: translateY(-2px); border-color: #bfd1ff; }
+    .hf-card.selected { border: 2px solid var(--accent); box-shadow: 0 16px 32px rgba(37, 99, 235, .12); }
+    .pill {
+      display: inline-block; font-size: .85rem; color: var(--accent-2); background: #e8f0ff;
+      padding: 6px 10px; border-radius: 999px; margin-bottom: 10px; font-weight: 600;
+    }
+    .actions, .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    button {
+      border: 0; border-radius: 14px; padding: 12px 16px; font-size: 1rem; font-weight: 700; cursor: pointer;
+    }
+    .primary { background: var(--accent); color: #fff; }
+    .primary:hover { background: var(--accent-2); }
+    .secondary { background: #eef2ff; color: #334155; }
+    .secondary:hover { background: #e2e8f0; }
+    .danger { background: #fee2e2; color: #991b1b; }
+    .danger:hover { background: #fecaca; }
+    .hidden { display: none !important; }
+    .quiz-shell { display: grid; gap: 16px; }
+    .topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+    .progress { width: 100%; height: 12px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+    .progress > div { height: 100%; background: linear-gradient(90deg, #3b82f6, #2563eb); width: 0%; transition: width .2s ease; }
+    .question-title { font-size: 1.2rem; font-weight: 700; margin: 6px 0 8px; }
+    .hint, .small { font-size: .95rem; color: var(--muted); }
+    .option { display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--line); background: #fbfdff; border-radius: 16px; padding: 12px 14px; margin-bottom: 10px; }
+    .option input { margin-top: 3px; transform: scale(1.15); }
+    .result-item { border-radius: 18px; padding: 16px; border: 1px solid var(--line); margin-bottom: 14px; }
+    .result-item.good { background: var(--good-bg); border-color: rgba(16,185,129,.45); }
+    .result-item.bad { background: var(--bad-bg); border-color: rgba(239,68,68,.4); }
+    .result-item.partial { background: var(--warn-bg); border-color: rgba(245,158,11,.45); }
+    .answer-row { padding: 8px 10px; border-radius: 12px; margin: 8px 0; background: rgba(255,255,255,.6); border: 1px solid transparent; }
+    .answer-row.correct { border-color: rgba(16,185,129,.35); background: rgba(16,185,129,.08); }
+    .answer-row.wrong-picked { border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.08); }
+    .score { font-size: 1.1rem; font-weight: 700; }
+    .editor-grid { display:grid; grid-template-columns: 280px 1fr; gap:16px; }
+    .listbox { max-height: 520px; overflow:auto; border:1px solid var(--line); border-radius:16px; padding:8px; background:#fbfdff; }
+    .q-item { padding:10px 12px; border-radius:12px; cursor:pointer; margin-bottom:6px; border:1px solid transparent; }
+    .q-item:hover { background:#eef4ff; }
+    .q-item.active { border-color:#bfd1ff; background:#eef4ff; }
+    label.field { display:block; font-weight:700; margin:12px 0 6px; }
+    input[type="text"], textarea, select {
+      width:100%; border:1px solid var(--line); border-radius:14px; padding:12px 14px; font:inherit; background:#fff;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    .option-edit { display:grid; grid-template-columns: 44px 1fr auto; gap:10px; align-items:center; margin-bottom:10px; }
+    .inline-note { background:#f8fafc; border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin-top:10px; }
+    .exam-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 16px; }
+    .timer { font-weight: 800; font-size: 1.05rem; }
+    .timer.warn { color: #b45309; }
+    .timer.danger { color: #b91c1c; }
+    .question-nav { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+    .nav-chip { min-width:44px; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:#f8fafc; font-weight:700; }
+    .nav-chip.active { background: var(--accent); color:#fff; border-color: var(--accent); }
+    .nav-chip.answered { background:#e8f7ef; border-color:#86efac; }
+    .nav-chip.flagged { background:#fff7ed; border-color:#fdba74; }
+    .jump-row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:10px; }
+    .jump-row input[type=number] { width:110px; }
+    @media (max-width: 800px) { .editor-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { h1 { font-size: 1.6rem; } .hero, .question-card, .card { padding: 18px; } }
+  
+    @media (max-width: 700px) {
+      .wrap { padding: 14px 12px 36px; }
+      .hero, .card, .question-card { padding: 16px; border-radius: 18px; }
+      .grid { grid-template-columns: 1fr; gap: 12px; }
+      h1 { font-size: 1.55rem; line-height: 1.2; }
+      h2 { font-size: 1.2rem; }
+      button, .nav-btn, select, input, textarea {
+        min-height: 46px;
+        font-size: 16px !important;
+      }
+      .actions, .toolbar {
+        gap: 8px;
+      }
+      .toolbar > *, .actions > * {
+        flex: 1 1 100%;
+      }
+      .question-nav {
+        display: grid !important;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+      }
+      .question-nav button {
+        padding: 10px 0;
+      }
+      .sticky-topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: rgba(245,247,251,0.96);
+        backdrop-filter: blur(6px);
+        padding-top: 8px;
+        padding-bottom: 8px;
+      }
+    }
+
+  </style>
+
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="AEVO Trainer" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#2563eb" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero" id="setupView">
+      <div class="pill">AEVO Lern-App</div>
+      <h1>Prüfungsfragen nach Handlungsfeld üben</h1>
+      <p class="muted">Wähle ein Handlungsfeld aus und starte dein Multiple-Choice-Training. Am Ende siehst du deine Auswertung mit richtig und falsch markierten Antworten.</p>
+      <div class="grid" id="hfCards"></div>
+      <div class="actions">
+        <button class="primary" id="startBtn">Training starten</button>
+        <button class="secondary" id="startAllBtn">Alle Handlungsfelder zusammen</button>
+        <button class="secondary" id="openEditorBtn">Fragen bearbeiten</button>
+      </div>
+      <div class="card">
+        <div class="pill">Prüfungsmodus</div>
+        <h3>80 Fragen aus Handlungsfeld 1–3 · 180 Minuten</h3>
+        <p class="muted">Wähle eine von drei verschiedenen Prüfungsvarianten. Jede Variante enthält 80 Fragen aus dem gesamten Fragenkatalog und läuft mit Zeitlimit.</p>
+        <div class="exam-grid">
+          <button class="secondary" id="examA">Prüfung A starten</button>
+          <button class="secondary" id="examB">Prüfung B starten</button>
+          <button class="secondary" id="examC">Prüfung C starten</button>
+        </div>
+      </div>
+      <p class="muted small" id="importInfo"></p>
+    </section>
+
+    <section class="quiz-shell hidden" id="quizView">
+      <div class="card">
+        <div class="topbar">
+          <div>
+            <div class="pill" id="quizModeLabel">Training</div>
+            <div id="counter" class="score">Frage 1 von 1</div>
+          </div>
+          <div class="small muted" id="liveScore">Beantwortet: 0</div>
+        </div>
+        <div class="progress" aria-hidden="true"><div id="progressBar"></div></div>
+        <div class="actions">
+          <button class="secondary" id="homeBtn">Zum Hauptmenü</button>
+        </div>
+        <div class="jump-row">
+          <label for="jumpToQuestion" class="small muted">Direkt springen zu Frage</label>
+          <input type="number" id="jumpToQuestion" min="1" value="1" />
+          <button class="secondary" id="jumpBtn">Gehe zu</button>
+          <div class="timer hidden" id="timerBox">Zeit: <span id="timerText">180:00</span></div>
+        </div>
+        <div class="question-nav" id="questionNav"></div>
+      </div>
+      <div class="question-card" id="questionCard"></div>
+      <div class="actions">
+        <button class="secondary" id="prevBtn">Zurück</button>
+        <button class="primary" id="nextBtn">Weiter</button>
+        <button class="primary hidden" id="finishBtn">Auswertung anzeigen</button>
+      </div>
+    </section>
+
+    <section class="hidden" id="editorView">
+      <div class="hero">
+        <div class="pill">Bearbeitungsmodus</div>
+        <h2>Fragen ändern oder neue hinzufügen</h2>
+        <p class="muted">Änderungen werden direkt im Browser gespeichert. Du kannst Fragen umformulieren, einen zusätzlichen Satz ergänzen, Antworten ändern oder neue Fragen anlegen.</p>
+        <div class="actions">
+          <button class="secondary" id="editorHomeBtn">Zum Hauptmenü</button>
+          <button class="secondary" id="resetDataBtn">Originalfragen wiederherstellen</button>
+        </div>
+      </div>
+
+      <div class="editor-grid">
+        <div class="card">
+          <label class="field">Handlungsfeld</label>
+          <select id="editorHfSelect"></select>
+          <div class="actions">
+            <button class="primary" id="newQuestionBtn">Neue Frage</button>
+          </div>
+          <div class="listbox" id="questionList"></div>
+        </div>
+
+        <div class="card">
+          <label class="field">Fragetext</label>
+          <textarea id="editPrompt" placeholder="Hier die Frage eingeben"></textarea>
+
+          <label class="field">Zusätzlicher Satz / Hinweis</label>
+          <textarea id="editNote" placeholder="Optional: zusätzlicher Satz, Hinweis oder Erklärung"></textarea>
+
+          <label class="field">Antworten</label>
+          <div id="editOptions"></div>
+          <div class="actions">
+            <button class="secondary" id="addOptionBtn">Antwort hinzufügen</button>
+          </div>
+
+          <label class="field">ID der Frage</label>
+          <input type="text" id="editId" placeholder="z. B. HF1-99" />
+
+          <div class="actions">
+            <button class="primary" id="saveQuestionBtn">Änderungen speichern</button>
+            <button class="danger" id="deleteQuestionBtn">Frage löschen</button>
+          </div>
+          <div class="inline-note small">Tipp: Markiere richtige Antworten mit dem Häkchen links. Für eine neue Frage sollten mindestens 2 Antworten vorhanden sein.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="hidden" id="resultView">
+      <div class="hero">
+        <div class="pill">Ergebnis</div>
+        <h2 id="resultHeadline"></h2>
+        <p id="resultText" class="muted"></p>
+        <div class="actions">
+          <button class="primary" id="restartBtn">Neu starten</button>
+          <button class="secondary" id="retryWrongBtn">Nur falsche erneut üben</button>
+          <button class="secondary" id="resultHomeBtn">Zum Hauptmenü</button>
+        </div>
+      </div>
+      <div id="resultList"></div>
+    </section>
+  </div>
+
+  <script>
+    const DEFAULT_QUIZ_DATA = {"title": "AEVO Prüfungsfragen-Trainer", "sourceInfo": {"importedFrom": ["AEVO_HF1_Fragen_mit_Loesungen.docx", "AEVO_HF2_Fragen_mit_Loesungen.docx", "AEVO_HF3_Fragen_mit_Loesungen.docx"], "skippedMatchingTasks": {"HF1": 8, "HF2": 0, "HF3": 10}}, "handlungsfelder": {"HF1": {"name": "Handlungsfeld 1", "subtitle": "Ausbildungsvoraussetzungen prüfen und Ausbildung planen", "questions": [{"id": "HF1-1", "prompt": "Das Berufsbildungsgesetz (BBiG) regelt die berufliche Bildung in der Bundesrepublik Deutschland. Welche Bildungsbereiche umfasst das BBiG?", "multiple": true, "correctCount": 3, "options": [{"text": "Die berufliche (Erst-)Ausbildung", "correct": true}, {"text": "Den begleitenden Berufsschulunterricht", "correct": false}, {"text": "Die berufliche (Aufstiegs- und Anpassungs-)Fortbildung", "correct": true}, {"text": "Die berufliche Umschulung", "correct": true}, {"text": "Die Weiterbildung", "correct": false}]}, {"id": "HF1-2", "prompt": "Wo gilt das BBiG?", "multiple": false, "correctCount": 1, "options": [{"text": "In der systematischen Ausbildung in einem Betrieb", "correct": true}, {"text": "In der schulischen Monoausbildung in einem Beruf", "correct": false}, {"text": "In der Ausbildung in einem öffentlich-rechtlichen Dienstverhältnis", "correct": false}]}, {"id": "HF1-3", "prompt": "Was regelt das BBiG innerhalb der beruflichen Bildung insbesondere?", "multiple": true, "correctCount": 4, "options": [{"text": "... die Berufsbildung in der Wirtschaft", "correct": true}, {"text": "... die Ausbildung an einer berufsbildenden Schule", "correct": false}, {"text": "... alle beruflichen Aus- und Fortbildungsgänge", "correct": false}, {"text": "... das Prüfungswesen innerhalb der Ausbildung", "correct": true}, {"text": "... die Beschäftigung von Jugendlichen", "correct": false}, {"text": "... besondere Vorschriften der Ausbildung im Handwerk", "correct": true}, {"text": "... die Berufsausbildung von Pflegepersonal", "correct": false}, {"text": "... die berufliche Umschulung", "correct": true}]}, {"id": "HF1-4", "prompt": "Wodurch zeichnet sich das Duale System der Ausbildung aus?", "multiple": false, "correctCount": 1, "options": [{"text": "Durch die Zusammenarbeit der Betriebe mit allen berufsbildenden Schulen", "correct": false}, {"text": "Durch die Ausbildung in einer staatlichen Berufsfachschule", "correct": false}, {"text": "Durch die Ausbildung in einem Betrieb", "correct": false}, {"text": "Durch die Zusammenarbeit des Betriebs mit der Berufsschule", "correct": true}, {"text": "Durch die Zusammenarbeit des Betriebs mit der Kammer", "correct": false}, {"text": "Durch die Zusammenarbeit der Berufsschule mit den allgemeinbildenden Schulen", "correct": false}]}, {"id": "HF1-6", "prompt": "Welche Aufgaben hat die Berufsschule als Kooperationspartner im Dualen System?", "multiple": true, "correctCount": 3, "options": [{"text": "Vermittlung von Fertigkeiten", "correct": false}, {"text": "Erziehung zum demokratischen Staatsbürger", "correct": true}, {"text": "Durchführung von Berufsorientierungsmaßnahmen", "correct": false}, {"text": "Vermittlung von Fachwissen", "correct": true}, {"text": "Unterricht nach dem Ausbildungsrahmenplan", "correct": false}, {"text": "Weiterführung der Allgemeinbildung", "correct": true}]}, {"id": "HF1-8", "prompt": "Aus welchen Paragraphen des BBiG wird der Ausbildungs- und Erziehungsauftrag abgeleitet?", "multiple": false, "correctCount": 1, "options": [{"text": "§11 (Berufsausbildungsverhältnis, Vertragsniederschrift)", "correct": false}, {"text": "§14 (Pflichten des Ausbildenden, Berufsausbildung)", "correct": true}, {"text": "§13 (Pflichten des Auszubildenden)", "correct": false}, {"text": "§29 (Persönliche Eignung)", "correct": false}, {"text": "§27 (Eignung der Ausbildungsstätte)", "correct": false}]}, {"id": "HF1-9", "prompt": "Welche Mindestvoraussetzungen muss ein Bewerber für einen Ausbildungsplatz erfüllen?", "multiple": false, "correctCount": 1, "options": [{"text": "Hauptschulabschluss", "correct": false}, {"text": "Erfüllung der neun- bzw. zehnjährigen Vollzeitschulpflicht", "correct": true}, {"text": "Realschulabschluss", "correct": false}, {"text": "Keine", "correct": false}, {"text": "Allgemeine Hochschulreife", "correct": false}, {"text": "Bestehen eines Einstellungstests", "correct": false}]}, {"id": "HF1-10", "prompt": "Welche rechtliche Voraussetzung muss der Ausbildende mindestens erfüllen, um Auszubildende einstellen zu können?", "multiple": false, "correctCount": 1, "options": [{"text": "Hauptschulabschluss und abgeschlossene Ausbildung", "correct": false}, {"text": "Bestehen der AEVO-Prüfung", "correct": false}, {"text": "Mindestens 24 Jahre alt sein", "correct": false}, {"text": "Persönlich geeignet sein", "correct": true}, {"text": "Berufsausbildung im Ausbildungsberuf", "correct": false}, {"text": "Einen Ausbilder eingestellt haben", "correct": false}]}, {"id": "HF1-11", "prompt": "Welche rechtlichen Voraussetzungen (Eignungen) muss der Ausbilder erfüllen?", "multiple": true, "correctCount": 4, "options": [{"text": "Hauptschulabschluss und abgeschlossene Ausbildung", "correct": false}, {"text": "Berufs- und arbeitspädagogische Fähigkeiten", "correct": true}, {"text": "Angemessene Berufserfahrung", "correct": true}, {"text": "Persönlich geeignet sein", "correct": true}, {"text": "Berufsausbildung im Ausbildungsberuf", "correct": true}, {"text": "Die Eignung der Ausbildungsstätte muss vorhanden sein.", "correct": false}]}, {"id": "HF1-12", "prompt": "Welche Personen bzw. Personenkreise werden im BBiG erwähnt?", "multiple": true, "correctCount": 5, "options": [{"text": "Der Ausbildende", "correct": true}, {"text": "Der Berufsschullehrer", "correct": false}, {"text": "Der Ausbilder", "correct": true}, {"text": "Die Fachkräfte", "correct": true}, {"text": "Der Ausbilderarbeitskreis", "correct": false}, {"text": "Der nebenamtliche Ausbilder", "correct": false}, {"text": "Der Prüfungsausschuss", "correct": true}, {"text": "Der Ausbildungsleiter", "correct": false}, {"text": "Der Ausbildungsbeauftragte", "correct": false}, {"text": "Der Ausbildungsberater", "correct": true}, {"text": "Der Berufsberater", "correct": false}]}, {"id": "HF1-13", "prompt": "Welche Unterlage beschreibt detailliert die Lernziele, die der Auszubildende in einem Betrieb erlernen soll?", "multiple": false, "correctCount": 1, "options": [{"text": "Der Rahmenlehrplan", "correct": false}, {"text": "Das Ausbildungsberufsbild", "correct": false}, {"text": "Die Prüfungsanforderungen", "correct": false}, {"text": "Die Prüfungsordnung", "correct": false}, {"text": "Der Ausbildungsrahmenplan", "correct": true}, {"text": "Der betriebliche Ausbildungsplan", "correct": false}]}, {"id": "HF1-14", "prompt": "Welche Unterlage beschreibt detailliert die Lernziele, die der Auszubildende in der Berufsschule erlernen soll?", "multiple": false, "correctCount": 1, "options": [{"text": "Der Rahmenlehrplan", "correct": true}, {"text": "Das Ausbildungsberufsbild", "correct": false}, {"text": "Die Prüfungsanforderungen", "correct": false}, {"text": "Die Prüfungsordnung", "correct": false}, {"text": "Der Ausbildungsrahmenplan", "correct": false}, {"text": "Der betriebliche Ausbildungsplan", "correct": false}]}, {"id": "HF1-15", "prompt": "Welche Stelle erlässt Ausbildungsordnungen?", "multiple": false, "correctCount": 1, "options": [{"text": "Die zuständige Stelle", "correct": false}, {"text": "Das Bundesinstitut für Berufsbildung", "correct": false}, {"text": "Das Bundesministerium für Wirtschaft und Technologie oder das sonst zuständige Fachministerium", "correct": true}, {"text": "Der Berufsbildungsausschuss", "correct": false}, {"text": "Die Kultusministerkonferenz", "correct": false}]}, {"id": "HF1-16", "prompt": "Was sind die Ziele innerhalb der betrieblichen Erstausbildung?", "multiple": true, "correctCount": 3, "options": [{"text": "Vermitteln von Allgemeinwissen", "correct": false}, {"text": "Hinführen zur Handlungsfähigkeit", "correct": true}, {"text": "Fördern von Schlüsselqualifikationen", "correct": true}, {"text": "Erziehung zu Gehorsam und Dienstpflicht", "correct": false}, {"text": "Vermitteln von Fertigkeiten und Kenntnissen", "correct": true}]}, {"id": "HF1-19", "prompt": "Welcher Mitarbeiter erfüllt die Eignung zum Ausbilden von Industriemechanikern uneingeschränkt?", "multiple": false, "correctCount": 1, "options": [{"text": "Herr Hardt, 32 Jahre alt, Industriekaufmann, AEVO-Prüfung", "correct": false}, {"text": "Frau Flege, 25 Jahre alt, Bürokauffrau", "correct": false}, {"text": "Herr Peters, seit fünf Jahren als Industriemechaniker tätig, AEVO-Prüfung", "correct": true}, {"text": "Frau Fach, 33 Jahre alt, keine Berufsausbildung", "correct": false}, {"text": "Herr Weele, 18 Jahre alt, Industriemechaniker", "correct": false}]}, {"id": "HF1-21", "prompt": "Welche Aufgaben unterliegen einem Ausbildungsberater einer zuständigen Stelle?", "multiple": true, "correctCount": 3, "options": [{"text": "Beratung von Ausbildungsplatzsuchenden", "correct": false}, {"text": "Überwachung der Eignung des Ausbildungspersonals", "correct": true}, {"text": "Beratung von Auszubildenden", "correct": true}, {"text": "Überwachung des Mutterschutzgesetzes", "correct": false}, {"text": "Kontrolle der Ausbildungsnachweise", "correct": false}, {"text": "Beratung des Ausbildenden", "correct": true}]}, {"id": "HF1-22", "prompt": "Die Arbeitswelt ist in einem ständigen Wandel. Welche Aussagen sind richtig?", "multiple": true, "correctCount": 3, "options": [{"text": "Neben der Fachkompetenz hat heute die Sozialkompetenz eine hohe Bedeutung.", "correct": true}, {"text": "Der Schwerpunkt der Ausbildung muss sich ausschließlich auf die Vermittlung von Fertigkeiten und Kenntnissen konzentrieren.", "correct": false}, {"text": "Durch Automatisierung und Rationalisierung werden heute geringere Anforderungen an die Fachkräfte gestellt.", "correct": false}, {"text": "Die Vorbildfunktion des Ausbilders ist besonders wichtig.", "correct": true}, {"text": "In der heutigen Arbeitswelt wird immer mehr nur eine spezialisierte Berufsausbildung gefordert.", "correct": false}, {"text": "Die erzieherische Aufgabe des Ausbilders ist heute zweitrangig.", "correct": false}, {"text": "Die Handlungskompetenz wird in Ausbildungsordnungen näher beschrieben als selbstständiges „Planen, Durchführen und Kontrollieren“.", "correct": true}]}, {"id": "HF1-23", "prompt": "Ordnen Sie Themenbereiche den entsprechenden Rechtsquellen richtig zu. Welcher Lösungsblock ist korrekt?", "multiple": false, "correctCount": 1, "options": [{"text": "Block a", "correct": false}, {"text": "Block b", "correct": false}, {"text": "Block c", "correct": true}, {"text": "Block d", "correct": false}]}, {"id": "HF1-24", "prompt": "Welche Gründe sprechen für die betriebliche Ausbildung gegenüber der Einstellung von Fachkräften vom Arbeitsmarkt?", "multiple": true, "correctCount": 4, "options": [{"text": "Es minimiert das finanzielle Risiko einer Fehlbesetzung.", "correct": true}, {"text": "Auszubildende können als billige Arbeitskräfte beschäftigt werden.", "correct": false}, {"text": "Im Betrieb Ausgebildete identifizieren sich mehr mit dem Unternehmen.", "correct": true}, {"text": "Es können eventuell hohe Einarbeitungskosten entfallen.", "correct": true}, {"text": "Auszubildende können sofort nach der Ausbildung Führungspositionen übernehmen.", "correct": false}, {"text": "Es entfallen Kosten für Personalbeschaffung und Anwerbung.", "correct": true}]}, {"id": "HF1-26", "prompt": "Welche Faktoren sind Grundlage für langfristige Personalentwicklungsuntersuchungen?", "multiple": true, "correctCount": 4, "options": [{"text": "Anzahl der Mitarbeiter, die in den Ruhestand gehen", "correct": true}, {"text": "Entwicklung des Arbeitsmarkts", "correct": true}, {"text": "Kündigungen von Führungskräften", "correct": false}, {"text": "Innovative Entwicklung des Unternehmens", "correct": true}, {"text": "Momentane Produktionsflaute", "correct": false}, {"text": "Qualifikation der vorhandenen Mitarbeiter", "correct": true}, {"text": "Anzahl der Auszubildenden, die sich in der Ausbildung befinden", "correct": false}]}, {"id": "HF1-27", "prompt": "Bedürfnisse von Staat, Wirtschaft und Schulabgängern. Welche Aussagen sind richtig?", "multiple": true, "correctCount": 6, "options": [{"text": "Jugendarbeitslosigkeit verhindern", "correct": true}, {"text": "Überfüllte, kostenträchtige Hochschulen entlasten", "correct": false}, {"text": "Bildungsniveau anheben", "correct": true}, {"text": "Zum sozialen Gemeinwohl beitragen", "correct": false}, {"text": "Langfristig Wettbewerbsvorteile aufbauen", "correct": true}, {"text": "Identifikation der Mitarbeiter erhöhen", "correct": true}, {"text": "Eventuell Grundlage für ein späteres Studium schaffen", "correct": true}, {"text": "Lernen, einen geregelten Arbeitstag zu überstehen", "correct": false}, {"text": "Berufliche Einordnung und Identität finden", "correct": true}]}, {"id": "HF1-28", "prompt": "Welche Funktions- oder Rollenbeschreibung charakterisiert die Rolle des Erziehers?", "multiple": false, "correctCount": 1, "options": [{"text": "Ist selbst Weisungsempfänger", "correct": false}, {"text": "Setzt sich für die Auszubildenden ein", "correct": false}, {"text": "Ermittelt den quantitativen Nachwuchsbedarf", "correct": false}, {"text": "Erfüllt die ihm übertragene Fürsorgepflicht", "correct": false}, {"text": "Ist weisungsberechtigter Partner", "correct": false}, {"text": "Ist ein Idol für die Auszubildenden", "correct": false}, {"text": "Fördert persönliche und soziale Fähigkeiten", "correct": true}, {"text": "Vermittelt Fertigkeiten und Kenntnisse", "correct": false}, {"text": "Besitzt Fachkenntnisse und Erfahrung", "correct": false}]}, {"id": "HF1-29", "prompt": "Welche Funktions- oder Rollenbeschreibung charakterisiert die Rolle des Vorgesetzten?", "multiple": false, "correctCount": 1, "options": [{"text": "Ist selbst Weisungsempfänger", "correct": false}, {"text": "Setzt sich für die Auszubildenden ein", "correct": false}, {"text": "Ermittelt den quantitativen Nachwuchsbedarf", "correct": false}, {"text": "Erfüllt die ihm übertragene Fürsorgepflicht", "correct": false}, {"text": "Ist weisungsberechtigt", "correct": true}, {"text": "Lebt Ideale im Alltag vor", "correct": false}, {"text": "Fördert persönliche und soziale Fähigkeiten", "correct": false}, {"text": "Vermittelt Fertigkeiten und Kenntnisse", "correct": false}, {"text": "Besitzt Fachkenntnisse und Erfahrung", "correct": false}]}, {"id": "HF1-32", "prompt": "Welchen Stellenwert hat die Ausbildungsordnung?", "multiple": false, "correctCount": 1, "options": [{"text": "Neben der korrekten Berufsbezeichnung enthält die Ausbildungsordnung nur unverbindliche Empfehlungen.", "correct": false}, {"text": "Die Ausbildungsordnung beschreibt die wesentlichen Inhalte des Berufsschulstoffs.", "correct": false}, {"text": "Neben dem BBiG ist die Ausbildungsordnung eine der wichtigsten rechtlichen Grundlagen für die betriebliche Ausbildung.", "correct": true}]}, {"id": "HF1-33", "prompt": "Was sind die Mindestinhalte einer Ausbildungsordnung?", "multiple": true, "correctCount": 4, "options": [{"text": "Aussagen über die Höhe der Ausbildungsvergütung", "correct": false}, {"text": "Zahl und Lage der Zwischenprüfungen", "correct": true}, {"text": "Verkürzungsmöglichkeiten aufgrund von Schulabschlüssen", "correct": false}, {"text": "Anleitung zur sachlichen und zeitlichen Gliederung der Ausbildung", "correct": true}, {"text": "Prüfungsfächer", "correct": true}, {"text": "Aussagen über die zu vermittelnden Inhalte in der Berufsschule", "correct": false}, {"text": "Dauer der Ausbildungszeit", "correct": true}, {"text": "Aussagen über die geforderten Schulabschlüsse", "correct": false}]}, {"id": "HF1-34", "prompt": "Wie nennt man den speziellen Inhalt der Ausbildungsordnung, der detailliert die Kenntnisse und Fertigkeiten vorschreibt?", "multiple": false, "correctCount": 1, "options": [{"text": "Ausbildungsleitbild", "correct": false}, {"text": "Ausbildungsrahmenplan", "correct": true}, {"text": "Ausbildungsberufsbild", "correct": false}, {"text": "Ausbildungsinhaltsangabe", "correct": false}]}, {"id": "HF1-35", "prompt": "Welche Aussage trifft das BBiG hinsichtlich der Ausbildungsdauer?", "multiple": false, "correctCount": 1, "options": [{"text": "Die Ausbildungsdauer beträgt immer drei Jahre.", "correct": false}, {"text": "Nicht weniger als ein Jahr und nicht mehr als zwei Jahre.", "correct": false}, {"text": "Nicht weniger als zwei Jahre und nicht mehr als drei Jahre.", "correct": true}]}, {"id": "HF1-36", "prompt": "Was stellt das Ausbildungsberufsbild dar?", "multiple": false, "correctCount": 1, "options": [{"text": "Eine Inhaltsangabe der Berufsausbildung, d.h. eine grobe Auflistung der Kenntnisse, Fertigkeiten und Fähigkeiten.", "correct": true}, {"text": "Eine Auswahl an Kenntnissen und Fertigkeiten, aus denen der Betrieb auswählen kann.", "correct": false}, {"text": "Eine präzise Auflistung der Kenntnisse und Fertigkeiten für Betrieb und Berufsschule.", "correct": false}, {"text": "Das Image, das ein Ausbildungsberuf in der Gesellschaft hat.", "correct": false}]}, {"id": "HF1-37", "prompt": "Wozu dient der Ausbildungsrahmenplan?", "multiple": false, "correctCount": 1, "options": [{"text": "Als Anleitung zur sachlichen und zeitlichen Gliederung dient dieser den Ausbildern zur Erstellung des betrieblichen Ausbildungsplans.", "correct": true}, {"text": "Er gilt nur für die überbetriebliche Ausbildung.", "correct": false}, {"text": "Er gibt dem Auszubildenden Handlungsanleitung zur Führung des Ausbildungsnachweises.", "correct": false}]}, {"id": "HF1-38", "prompt": "Wer erlässt die Ausbildungsordnungen?", "multiple": false, "correctCount": 1, "options": [{"text": "Die zuständige Stelle", "correct": false}, {"text": "Der zuständige Fachminister im Einvernehmen mit dem Bundesminister für Bildung und Forschung", "correct": true}, {"text": "Die Kultusministerkonferenz", "correct": false}, {"text": "Der jeweilige Kultusminister eines Bundeslandes", "correct": false}]}, {"id": "HF1-39", "prompt": "Es gibt verschiedene Formen der Ausbildungsordnungen. Welche sind das?", "multiple": true, "correctCount": 2, "options": [{"text": "Dualisierte Berufe", "correct": false}, {"text": "Monoberufe mit Spezialisierung", "correct": true}, {"text": "Ausbildungsordnungen mit separater Sockelqualifikation", "correct": false}, {"text": "Stufenausbildung", "correct": true}]}, {"id": "HF1-40", "prompt": "Wodurch ist die Stufenausbildung gekennzeichnet?", "multiple": false, "correctCount": 1, "options": [{"text": "Nach einer breiten Grundausbildung findet keine differenzierte Fachausbildung statt.", "correct": false}, {"text": "Die Grundbildung findet grundsätzlich nur in Berufsschule und überbetrieblicher Ausbildungsstätte statt.", "correct": false}, {"text": "Die Stufenausbildung gliedert sich in berufliche Grundbildung, allgemeine und besondere berufliche Fachbildung. Nach einzelnen Stufen können Prüfungen abgelegt werden.", "correct": true}]}, {"id": "HF1-41", "prompt": "Wann gilt eine Ausbildungsstätte nach dem BBiG als grundsätzlich geeignet?", "multiple": true, "correctCount": 2, "options": [{"text": "Es müssen für alle Auszubildenden entsprechende Pausen- oder Ruheräume vorhanden sein.", "correct": false}, {"text": "Es müssen Arbeitsmittel vorhanden sein, die eine ordnungsgemäße Ausbildung gewährleisten.", "correct": true}, {"text": "Es müssen pro Auszubildenden mindestens ein Ausbilder und eine Fachkraft zur Verfügung stehen.", "correct": false}, {"text": "Es muss gewährleistet sein, dass die vorgeschriebenen Kenntnisse und Fertigkeiten vermittelt werden können.", "correct": true}, {"text": "Für die gewerblich-technische Ausbildung sind zwingend Ausbildungswerkstätten vorgeschrieben.", "correct": false}, {"text": "Ausbildungsordnungen müssen vorhanden sein. Betriebliche Ausbildungspläne sind nicht zwingend.", "correct": false}]}, {"id": "HF1-42", "prompt": "Ein Betrieb kann einige Kenntnisse und Fertigkeiten nicht vermitteln. Kann trotzdem ausgebildet werden?", "multiple": true, "correctCount": 2, "options": [{"text": "Nein, das sieht das BBiG nicht vor.", "correct": false}, {"text": "Ja, wenn Eignungsmängel durch außerbetriebliche Ausbildung kompensiert werden.", "correct": true}, {"text": "Ja, da nur die im Betrieb vermittelten Inhalte geprüft werden.", "correct": false}, {"text": "Ja, wenn der Auszubildende sich die Inhalte in seiner Freizeit aneignet.", "correct": false}, {"text": "Ja, wenn die Eignungsmängel in überbetrieblicher Ausbildung ausgeglichen werden.", "correct": true}, {"text": "Ja, wenn diese gegen Gebühr in der Berufsschule vermittelt werden.", "correct": false}]}, {"id": "HF1-43", "prompt": "Welche Institution ist für die Überwachung der Eignung der Ausbildungsstätte zuständig?", "multiple": false, "correctCount": 1, "options": [{"text": "Die nach Landesrecht zuständige Behörde", "correct": false}, {"text": "Das zuständige Fachministerium", "correct": false}, {"text": "Die zuständige Stelle", "correct": true}, {"text": "Die zuständige Agentur für Arbeit", "correct": false}]}, {"id": "HF1-44", "prompt": "Wer ist betrieblicherseits für die Eignung der Ausbildungsstätte verantwortlich?", "multiple": false, "correctCount": 1, "options": [{"text": "Der Auszubildende", "correct": false}, {"text": "Der Ausbilder", "correct": false}, {"text": "Der Ausbildende", "correct": true}, {"text": "Der Vorsitzende des Ausschusses für Ausbildungsfragen", "correct": false}, {"text": "Alle Mitglieder des Ausschusses", "correct": false}]}, {"id": "HF1-45", "prompt": "Der Ausbildungsberater stellt Mängel fest. Welche Konsequenzen kann das zunächst haben?", "multiple": false, "correctCount": 1, "options": [{"text": "Der Name wird im Bundesanzeiger veröffentlicht.", "correct": false}, {"text": "Die zuständige Stelle versucht sofort, Ersatzausbildungsplätze zu beschaffen.", "correct": false}, {"text": "Der Betrieb wird verwarnt; weitere Konsequenzen gibt es nicht.", "correct": false}, {"text": "Dem Betrieb wird sofort die Ausbildungsbefugnis entzogen.", "correct": false}, {"text": "Der Ausbildungsberater räumt dem Betrieb eine Frist zum Beheben der Mängel ein.", "correct": true}, {"text": "Der Ausbildende erhält eine Vorladung zur Anhörung.", "correct": false}]}, {"id": "HF1-46", "prompt": "Welche Lernorte gelten für gewerblich-technische Auszubildende als innerbetrieblich?", "multiple": true, "correctCount": 2, "options": [{"text": "Lernecke", "correct": true}, {"text": "Berufsschule", "correct": false}, {"text": "Ausbildungswerkstatt", "correct": true}, {"text": "Kantine", "correct": false}, {"text": "Mitarbeiterparkplatz", "correct": false}]}]}, "HF2": {"name": "Handlungsfeld 2", "subtitle": "Ausbildung vorbereiten und bei der Einstellung von Auszubildenden mitwirken", "questions": [{"id": "HF2-1", "prompt": "Zur Erstellung des betrieblichen Ausbildungsplans soll sich der Ausbilder bestimmter Hilfen bedienen. Welche sind das?", "multiple": false, "correctCount": 1, "options": [{"text": "Berufsbildungsgesetz", "correct": false}, {"text": "Jugendarbeitsschutzgesetz", "correct": false}, {"text": "Ausbildungsrahmenplan", "correct": true}, {"text": "Prüfungsordnung der zuständigen Stelle", "correct": false}]}, {"id": "HF2-2", "prompt": "Dem Ausbildungsrahmenplan wird der Rahmenlehrplan der Berufsschule gegenübergestellt. Welche Funktion hat der Rahmenlehrplan?", "multiple": false, "correctCount": 1, "options": [{"text": "Der Rahmenlehrplan legt die Stoffverteilung zwischen Berufsschule und Ausbildungsbetrieb fest.", "correct": false}, {"text": "Der Rahmenplan gibt die Inhalte des in der Berufsschule zu vermittelnden Stoffes vor.", "correct": true}, {"text": "Der Rahmenlehrplan schreibt die Inhalte der überbetrieblichen Ausbildung vor.", "correct": false}]}, {"id": "HF2-3", "prompt": "Ausbildungsbetrieb und Berufsschule sind Partner im Dualen System. Welche Aufgaben hat die Berufsschule?", "multiple": true, "correctCount": 3, "options": [{"text": "Überwiegend Vermittlung von Fachpraxis", "correct": false}, {"text": "Fortsetzung der Vermittlung von Allgemeinbildung", "correct": true}, {"text": "Erziehung der Berufsschüler zu „mündigen“ Staatsbürgern", "correct": true}, {"text": "Der Berufsschulunterricht soll ermöglichen, den Auszubildenden Abwechslung vom betrieblichen Ausbildungsalltag zu verschaffen und ist als Schonraum für Auszubildende anzusehen.", "correct": false}, {"text": "Überwiegend Vermittlung von Fachtheorie", "correct": true}]}, {"id": "HF2-4", "prompt": "Warum soll der Ausbilder bei der betrieblichen Ausbildungsplanung auch die Inhalte des Rahmenlehrplans berücksichtigen?", "multiple": false, "correctCount": 1, "options": [{"text": "Er braucht den Rahmenlehrplan nicht zu berücksichtigen, da dieser mit dem Ausbildungsrahmenplan nicht in Beziehung steht.", "correct": false}, {"text": "Er braucht den Rahmenlehrplan nicht zu berücksichtigen, da sich die Berufsschullehrer am Ausbildungsrahmenplan orientieren müssen.", "correct": false}, {"text": "Er soll sich auch für die betriebliche Ausbildung am Rahmenlehrplan orientieren, um eine weitestgehende Parallelität bei der Vermittlung von Praxis (Betrieb) und Theorie (Berufsschule) gewährleisten zu können.", "correct": true}, {"text": "Er soll den Rahmenlehrplan berücksichtigen, da dies durch Rechtsverordnung vorgeschrieben ist.", "correct": false}]}, {"id": "HF2-5", "prompt": "Wie müssen Verkürzungen aufgrund von Vorbildung bei der Ausbildungsplanung berücksichtigt werden?", "multiple": true, "correctCount": 2, "options": [{"text": "Bei vorangegangenem erfolgreichen Besuch des Berufsgrundbildungsjahrs (BGJ) und einer sich anschließenden betrieblichen Ausbildung im gleichen Berufsfeld kann das als 1. Ausbildungsjahr angerechnet werden. Der Auszubildende beginnt im 2. Ausbildungsjahr.", "correct": true}, {"text": "Verkürzungen aufgrund von Vorbildung sind gemäß den rechtlichen Bestimmungen nicht vorgesehen.", "correct": false}, {"text": "Bei Auszubildenden mit Allgemeiner Hochschulreife muss dieser Abschluss als 1. Ausbildungsjahr angerechnet werden. Der Auszubildende beginnt im 2. Ausbildungsjahr.", "correct": false}, {"text": "Bei Auszubildenden mit Allgemeiner Hochschulreife kann dieser Abschluss auf die Dauer der Ausbildung angerechnet werden. Es müssen alle vorgeschriebenen Inhalte laut Ausbildungsrahmenplan vermittelt werden, allerdings in verkürzter Zeit.", "correct": true}]}, {"id": "HF2-6", "prompt": "Bei der Ausbildungsplanung soll nach bestimmten didaktischen Prinzipien vorgegangen werden. Welche sind das?", "multiple": true, "correctCount": 2, "options": [{"text": "Vom Leichten zum Schweren", "correct": true}, {"text": "Vom Abstrakten zum Konkreten", "correct": false}, {"text": "Vom Einfachen zum Zusammengesetzten", "correct": true}, {"text": "Vom Manuellen zum Kognitiven", "correct": false}, {"text": "Vom Speziellen zum Allgemeinen", "correct": false}]}, {"id": "HF2-7", "prompt": "Was ist bei der Erstellung eines betrieblichen Ausbildungsplans zu beachten?", "multiple": true, "correctCount": 2, "options": [{"text": "Die Reihenfolge der zu vermittelnden Inhalte ist beliebig. Der Ausbildungsrahmenplan ist außer Acht zu lassen.", "correct": false}, {"text": "Berufsschulzeiten sind bei der zeitlichen Planung nicht zu berücksichtigen.", "correct": false}, {"text": "Ausbildungsabschnitte, die außerbetrieblich vermittelt werden, müssen nicht im betrieblichen Ausbildungsplan aufgenommen werden.", "correct": false}, {"text": "Zu vermittelnde Kenntnisse und Fertigkeiten werden entsprechenden Lernorten zugeordnet.", "correct": true}, {"text": "Die Dauer der jeweiligen Ausbildungsabschnitte wird im betrieblichen Ausbildungsplan festgelegt.", "correct": true}]}, {"id": "HF2-8", "prompt": "Welche Funktion hat ein Versetzungsplan?", "multiple": false, "correctCount": 1, "options": [{"text": "Dieser Plan kommt nur in der Berufsschule vor. Er gibt Auskunft über die Versetzung von Schülern.", "correct": false}, {"text": "Dieser Plan gibt Auskunft über die Versetzungen in den allgemeinbildenden Schulen.", "correct": false}, {"text": "Dieser Plan dient dazu, die Ausbildung personell zu entzerren, d.h., er gibt Auskunft in welcher Zeit sich welcher Auszubildende an welchem Lernort befindet.", "correct": true}]}, {"id": "HF2-9", "prompt": "Welche Fähigkeiten/Vorbildung sollte eine Ausbildungsplatzbewerberin für den Ausbildungsberuf „Industriekauffrau“ unbedingt mitbringen?", "multiple": true, "correctCount": 2, "options": [{"text": "Körperkraft", "correct": false}, {"text": "Allgemeine Hochschulreife", "correct": false}, {"text": "Aufgeschlossenheit", "correct": true}, {"text": "Handwerkliche Begabung", "correct": false}, {"text": "Verhandlungsgeschick", "correct": false}, {"text": "Schriftliches Ausdrucksvermögen", "correct": true}]}, {"id": "HF2-10", "prompt": "In welchen der nachfolgend aufgeführten Schulfächern sollten einem Bewerber für den Ausbildungsberuf „Industriemechaniker“ überzeugende Leistungen bescheinigt worden sein?", "multiple": true, "correctCount": 2, "options": [{"text": "Musik", "correct": false}, {"text": "Mathematik", "correct": true}, {"text": "Kunst", "correct": false}, {"text": "Religion", "correct": false}, {"text": "Geschichte", "correct": false}, {"text": "Physik", "correct": true}]}, {"id": "HF2-11", "prompt": "Welche Voraussetzungen muss ein Ausbildungsplatzbewerber aus rechtlicher Sicht erfüllen, um eine Berufsausbildung aufnehmen zu können?", "multiple": false, "correctCount": 1, "options": [{"text": "Keine", "correct": false}, {"text": "Fachhochschulreife", "correct": false}, {"text": "Hauptschulabschluss", "correct": false}, {"text": "Realschulabschluss", "correct": false}, {"text": "Erfüllung der Vollzeitschulpflicht", "correct": true}, {"text": "In jedem Fall vorangegangener erfolgreicher Besuch eines Berufsgrundbildungsjahrs (BGJ)", "correct": false}]}, {"id": "HF2-12", "prompt": "Teamfähigkeit wird heute seitens der Ausbildungsbetriebe von vielen Ausbildungsplatzbewerbern erwartet. Woran kann der Ausbilder erkennen, ob diese Qualifikation im Ansatz vorhanden ist?", "multiple": true, "correctCount": 2, "options": [{"text": "Hobby: Fernsehen", "correct": false}, {"text": "Aktives Engagement in der kirchlichen Jugendarbeit", "correct": true}, {"text": "Keine Hobbys", "correct": false}, {"text": "Ausschließliches Hobby: Internet-Chat", "correct": false}, {"text": "Aktives Mitglied einer Handballmannschaft", "correct": true}]}, {"id": "HF2-13", "prompt": "Welche sinnvollen Instrumente zur Bewerbergewinnung sollten vom Ausbildungsbetrieb genutzt werden?", "multiple": true, "correctCount": 3, "options": [{"text": "Vorstellung des Betriebs in Berufsschulklassen", "correct": false}, {"text": "Berufsinformationszentrum der Agentur für Arbeit", "correct": true}, {"text": "Internet", "correct": true}, {"text": "Stellenanzeige im englischsprachigen Ausland", "correct": false}, {"text": "Aushang am Schwarzen Brett des Betriebs", "correct": true}]}, {"id": "HF2-14", "prompt": "Welche Angaben werden im Allgemeinen nicht in Stellenausschreibungen für Ausbildungsplätze gemacht?", "multiple": false, "correctCount": 1, "options": [{"text": "Bezeichnung des Ausbildungsberufs", "correct": false}, {"text": "Angaben über die gewünschten Bewerbungsunterlagen", "correct": false}, {"text": "Angaben über den Einstellungszeitpunkt", "correct": false}, {"text": "Angaben über die Höhe der Ausbildungsvergütung", "correct": true}]}, {"id": "HF2-15", "prompt": "Welche Unterlagen sind bei der Einreichung von schriftlichen Bewerbungen unverzichtbar?", "multiple": true, "correctCount": 2, "options": [{"text": "Zeugniskopien", "correct": true}, {"text": "Empfehlungsschreiben des Lehrers", "correct": false}, {"text": "Arbeitsprobe", "correct": false}, {"text": "Urkunde der Bundesjugendspiele", "correct": false}, {"text": "Lebenslauf", "correct": true}]}, {"id": "HF2-16", "prompt": "Welche Fragen sind in einem Bewerbungsgespräch unzulässig?", "multiple": true, "correctCount": 2, "options": [{"text": "Frage nach bestehender Schwangerschaft", "correct": true}, {"text": "Fragen nach Entscheidungsgründen für die Bewerbung in diesem Betrieb", "correct": false}, {"text": "Fragen nach der Schulbildung", "correct": false}, {"text": "Fragen nach einem möglichen Kinderwunsch", "correct": true}]}, {"id": "HF2-17", "prompt": "Welche Entscheidungshilfen tragen gemeinhin zur Einstellung von Ausbildungsplatzbewerbern bei?", "multiple": false, "correctCount": 1, "options": [{"text": "Der Bewerbung beigefügtes Referenzschreiben der Eltern", "correct": false}, {"text": "Bewerbungsgespräch", "correct": true}, {"text": "Einkommensverhältnisse der Eltern", "correct": false}, {"text": "Grundschulzeugnisse", "correct": false}]}, {"id": "HF2-18", "prompt": "In welcher Form sollte ein Bewerbungsgespräch mit Ausbildungsaspiranten geführt werden?", "multiple": false, "correctCount": 1, "options": [{"text": "Es sollte in möglichst zwangloser Atmosphäre geführt werden.", "correct": true}, {"text": "Es sollte wie ein mündliches Prüfungsgespräch geführt werden.", "correct": false}, {"text": "Es sollte außerhalb des Betriebs z. B. in einer Gaststätte, geführt werden.", "correct": false}, {"text": "Es sollte gar nicht geführt werden, denn es könnte der Erste-Eindruck-Fehler entstehen.", "correct": false}, {"text": "Es sollte wie eine politische Debatte geführt werden.", "correct": false}]}, {"id": "HF2-19", "prompt": "Wie kann der Betriebsrat bei der Einstellung von Auszubildenden mitwirken?", "multiple": true, "correctCount": 2, "options": [{"text": "Bei der Einstellung von Auszubildenden hat der Betriebsrat mitzubestimmen.", "correct": true}, {"text": "Der Betriebsrat hat das alleinige Recht, über Einstellungen zu bestimmen.", "correct": false}, {"text": "Dem Betriebsrat müssen die Bewerbungsunterlagen vorgelegt werden.", "correct": true}, {"text": "Gar nicht", "correct": false}, {"text": "Die Einstellung von Auszubildenden obliegt ausschließlich den zuständigen Stellen.", "correct": false}]}, {"id": "HF2-20", "prompt": "Rechtliche Grundlage eines Ausbildungsverhältnisses ist der Berufsausbildungsvertrag (BAV). Welche Vertragspartner kann es in einem Berufsausbildungsvertrag geben?", "multiple": true, "correctCount": 3, "options": [{"text": "Die Eltern", "correct": false}, {"text": "Der Ausbildende, der selbst ausbildet", "correct": true}, {"text": "Der Ausbilder", "correct": false}, {"text": "Der Auszubildende", "correct": true}, {"text": "Der Berufsschullehrer", "correct": false}, {"text": "Der Ausbildungsberater der zuständigen Stelle", "correct": false}, {"text": "Der Ausbildende, der nicht selbst ausbildet", "correct": true}]}, {"id": "HF2-21", "prompt": "In welcher Form ist der Berufsausbildungsvertrag abzuschließen?", "multiple": false, "correctCount": 1, "options": [{"text": "Nur mündlich und per Handschlag", "correct": false}, {"text": "In gar keiner; es reicht, wenn der Auszubildende am ersten Ausbildungstag im Betrieb erscheint", "correct": false}, {"text": "Schriftlich", "correct": true}]}, {"id": "HF2-22", "prompt": "Wann muss der Berufsausbildungsvertrag geschlossen werden?", "multiple": false, "correctCount": 1, "options": [{"text": "Am ersten Tag der Ausbildung", "correct": false}, {"text": "Im Laufe der Probezeit", "correct": false}, {"text": "In der letzten Woche der vereinbarten Probezeit", "correct": false}, {"text": "Spätestens vor Beginn der Ausbildung", "correct": true}]}, {"id": "HF2-23", "prompt": "Welche sind zwingend vorgeschriebene Inhalte eines Berufsausbildungsvertrags nach BBiG?", "multiple": true, "correctCount": 3, "options": [{"text": "Berufsschulzeiten", "correct": false}, {"text": "Ziel der Ausbildung", "correct": true}, {"text": "Vertragsstrafen", "correct": false}, {"text": "Name des Ausbilders und der Ausbildungsbeauftragten", "correct": false}, {"text": "Ausschluss von Schadensersatzansprüchen", "correct": false}, {"text": "Höhe der Vergütung", "correct": true}, {"text": "Dauer des Urlaubs", "correct": true}]}, {"id": "HF2-24", "prompt": "Der Beginn und die Dauer der Ausbildung sind zwingend vorgeschriebene Inhalte eines Berufsausbildungsvertrags. Welche Aussagen hinsichtlich der Dauer sind richtig?", "multiple": false, "correctCount": 1, "options": [{"text": "Es müssen der konkrete Anfangs- und Beendigungstermin angegeben werden.", "correct": true}, {"text": "Es muss nur der konkrete Anfangstermin eingetragen werden, da nicht abzusehen ob die Ausbildung möglicherweise verlängert werden muss.", "correct": false}, {"text": "Ein konkreter Endtermin der Ausbildung kann nicht angegeben werden, da noch nicht feststeht, an welchem Tag die Abschlussprüfung abgeschlossen sein wird. Dieser wird von der zuständigen Stelle nachgetragen.", "correct": false}]}, {"id": "HF2-25", "prompt": "Die Dauer der Probezeit ist ebenfalls in den Ausbildungsvertrag einzutragen. Welche Aussagen treffen hierbei zu?", "multiple": true, "correctCount": 2, "options": [{"text": "Die Probezeit muss mindestens einen Monat betragen.", "correct": true}, {"text": "Die Probezeit beträgt sechs Monate.", "correct": false}, {"text": "Die Probezeit wird bei jugendlichen Auszubildenden nach Absprache mit der zuständigen Stelle festgelegt.", "correct": false}, {"text": "Die Probezeit hängt von der Dauer der Ausbildungszeit ab.", "correct": false}, {"text": "Die Probezeit darf höchstens vier Monate betragen.", "correct": true}, {"text": "Die Probezeit wird individuell zwischen Ausbildenden und Auszubildenden bestimmt. Es gibt keine gesetzlichen Vorschriften.", "correct": false}]}, {"id": "HF2-26", "prompt": "Die Höhe der Ausbildungsvergütung ist ein weiterer Bestandteil des Berufsausbildungsvertrags. Welche Aussagen sind zutreffend?", "multiple": false, "correctCount": 1, "options": [{"text": "Die Vergütung muss angemessen sein, d.h., es werden im Allgemeinen tarifliche oder branchenübliche Regelungen zugrunde gelegt.", "correct": true}, {"text": "Die Höhe der Ausbildungsvergütung wird ausschließlich vom Staat festgelegt.", "correct": false}, {"text": "Die Höhe der Ausbildungsvergütung wird ausschließlich von den zuständigen Stellen festgelegt.", "correct": false}, {"text": "Die Höhe der Ausbildungsvergütung ist abhängig von der Höhe der Investitionen des Ausbildungsbetriebs. Je höher die Investitionen sind, desto geringer ist die Ausbildungsvergütung.", "correct": false}]}, {"id": "HF2-27", "prompt": "Welche Verkürzung kann bei Bewerbern mit Realschulabschluss berücksichtigt werden?", "multiple": false, "correctCount": 1, "options": [{"text": "Es muss um maximal neun Monate verkürzt werden.", "correct": false}, {"text": "Es ist jegliche Verkürzung ausgeschlossen.", "correct": false}, {"text": "Es kann um maximal sechs Monate verkürzt werden.", "correct": true}, {"text": "Es kann um maximal zwölf Monate verkürzt werden.", "correct": false}]}, {"id": "HF2-28", "prompt": "Welche rechtlichen Quellen können bei der Bestimmung der Dauer der täglichen Ausbildungszeit berücksichtigt werden?", "multiple": true, "correctCount": 2, "options": [{"text": "Tarifvertrag", "correct": true}, {"text": "Arbeitszeitgesetz", "correct": true}, {"text": "EU-Arbeitszeitkonvention", "correct": false}, {"text": "Empfehlungen des Ausbildungszeitausschusses der zuständigen Stelle", "correct": false}, {"text": "Bundesausbildungszeitgesetz", "correct": false}]}, {"id": "HF2-29", "prompt": "Die Dauer der regelmäßigen täglichen Ausbildungszeit wird ebenfalls im Berufsausbildungsvertrag festgelegt. Welche Aussagen sind zutreffend?", "multiple": false, "correctCount": 1, "options": [{"text": "Ein jugendlicher Auszubildender darf gemäß den gesetzlichen Bestimmungen maximal 44 Stunden pro Woche an sechs Werktagen beschäftigt werden.", "correct": false}, {"text": "Ein volljähriger Auszubildender kann gemäß den gesetzlichen Bestimmungen 48 Stunden pro Woche an sechs Werktagen beschäftigt werden, wobei die Berufsschulzeiten als Ausbildungszeiten zu berücksichtigen sind.", "correct": true}, {"text": "Auszubildende dürfen gemäß den gesetzlichen Bestimmungen maximal 40 Stunden pro Woche beschäftigt werden.", "correct": false}, {"text": "Jugendliche Auszubildende dürfen nur 36 Stunden pro Woche einschließlich der Berufsschulzeiten beschäftigt werden.", "correct": false}, {"text": "Mehrarbeit für Auszubildende ist verboten.", "correct": false}]}, {"id": "HF2-30", "prompt": "Ein volljähriger Auszubildender mit einer regelmäßigen täglichen bzw. wöchentlichen Ausbildungszeit von acht bzw. 40 Stunden verlangt vom Ausbildenden, nach einem Berufsschultag von sechs Unterrichtsstunden nicht mehr im Ausbildungsbetrieb erscheinen zu müssen. Wie ist diese Auffassung rechtlich zu bewerten?", "multiple": false, "correctCount": 1, "options": [{"text": "Ein Freistellungsanspruch besteht nicht, da das Arbeitszeitgesetz eine regelmäßige Arbeitszeit von acht Stunden pro Tag vorsieht.", "correct": true}, {"text": "Auszubildende sind generell von der Ausbildung am Berufsschultag freizustellen.", "correct": false}, {"text": "Die Berufsschule kann verfügen, dass Auszubildende nach Berufsschultagen mit mehr als fünf Unterrichtsstunden von der Ausbildung freizustellen sind.", "correct": false}]}, {"id": "HF2-31", "prompt": "Welche Aussagen hinsichtlich der Dauer des Urlaubs, der im Berufsausbildungsvertrag festgelegt ist, sind zutreffend?", "multiple": true, "correctCount": 2, "options": [{"text": "Für Auszubildende gelten immer die Bestimmungen des Bundesurlaubsgesetzes, d.h. es müssen ihnen mindestens 24 Werktage pro Jahr gewährt werden.", "correct": false}, {"text": "Für jugendliche Auszubildende gibt es gesonderte gesetzliche Regelungen. Diese bemessen sich nach dem Alter der Jugendlichen.", "correct": true}, {"text": "Für Auszubildende, in deren Ausbildungsstätte ein Tarifvertrag zur Anwendung kommt, gelten die tariflichen Bestimmungen, sofern sie für die Auszubildenden günstiger sind als die gesetzlich vorgeschriebenen.", "correct": true}, {"text": "Die Anzahl der Urlaubstage liegt im beliebigen Interesse des Ausbildenden. Dabei können gesetzliche Vorgaben auch unterschritten werden.", "correct": false}]}, {"id": "HF2-32", "prompt": "Welche Pflichten hat der Ausbildende?", "multiple": true, "correctCount": 3, "options": [{"text": "Ausbildungspflicht", "correct": true}, {"text": "Die Pflicht, die Fahrkosten von und zur Berufsschule zu übernehmen", "correct": false}, {"text": "Die Pflicht zur Freistellung zu Prüfungen und den Auszubildenden dazu anzuhalten, daran teilzunehmen", "correct": true}, {"text": "Die Pflicht, dem Auszubildenden Urlaub zu gewähren", "correct": true}, {"text": "Die Pflicht, dem Auszubildenden ein Betriebsfahrzeug für die Wege von und zur Ausbildungsstätte zu stellen", "correct": false}, {"text": "Die Pflicht, die Kosten für die Fachbücher in der Berufsschule zu übernehmen", "correct": false}, {"text": "Die Pflicht, dem Auszubildenden alle Mitarbeiter vorzustellen", "correct": false}]}, {"id": "HF2-33", "prompt": "Welche der nachstehenden Vereinbarungen sind nichtig?", "multiple": true, "correctCount": 2, "options": [{"text": "Name des Berufes, zu dem ausgebildet werden soll", "correct": false}, {"text": "Sachliche und zeitliche Gliederung der Ausbildung", "correct": false}, {"text": "Hinweis auf anzuwendende Tarifverträge, Betriebsvereinbarungen etc.", "correct": false}, {"text": "Ausschluss oder Beschränkung von Schadenersatzansprüchen", "correct": true}, {"text": "Dauer des Urlaubs", "correct": false}, {"text": "Voraussetzungen, unter denen ein Ausbildungsverhältnis gekündigt werden kann", "correct": false}, {"text": "Verpflichtung des Auszubildenden, über die Zeit des Ausbildungsverhältnisses hinaus für den Betrieb zu arbeiten", "correct": true}]}, {"id": "HF2-34", "prompt": "Das Ausbildungsverhältnis muss bei der zuständigen Stelle in das entsprechende Verzeichnis eingetragen werden. Wer muss dieses beantragen?", "multiple": false, "correctCount": 1, "options": [{"text": "Der Auszubildende", "correct": false}, {"text": "Der Ausbildungsberater", "correct": false}, {"text": "Der Betriebsrat des Ausbildungsbetriebs", "correct": false}, {"text": "Der Ausbildende", "correct": true}, {"text": "Niemand, denn die Beantragung erfolgt automatisch durch die zuständige Stelle", "correct": false}]}, {"id": "HF2-35", "prompt": "Was ist dem Berufsausbildungsvertrag bei jugendlichen Auszubildenden beim Antrag auf Eintragung in das Verzeichnis der Berufsausbildungsverhältnisse bei der zuständigen Stelle beizufügen?", "multiple": false, "correctCount": 1, "options": [{"text": "Die Bankverbindung des Auszubildenden", "correct": false}, {"text": "Die Ausbildungswillenserklärung des Ausbildenden", "correct": false}, {"text": "Die Absichtserklärung des Auszubildenden, seiner Lernpflicht immer nachkommen zu wollen", "correct": false}, {"text": "Die Erklärung der gesetzlichen Vertreter, den Ausbildenden bei seinen Ausbildungsbemühungen zu unterstützen", "correct": false}, {"text": "Die Bescheinigung über die ärztliche Erstuntersuchung", "correct": true}, {"text": "Die letzten drei Zeugnisse der allgemeinbildenden Schulen", "correct": false}]}, {"id": "HF2-36", "prompt": "Der Ausbildende hat den Auszubildenden bei den Sozialversicherungsträgern anzumelden. Welche der im Folgenden genannten sind das?", "multiple": true, "correctCount": 2, "options": [{"text": "Gesetzliche Ausbildungsversicherung", "correct": false}, {"text": "Öffentliche Berufsbildungsversicherung", "correct": false}, {"text": "Gesetzliche Krankenversicherung", "correct": true}, {"text": "Gesetzliche Arbeitsförderungsversicherung", "correct": false}, {"text": "Private Krankenversicherung", "correct": false}, {"text": "Gesetzliche Arbeitslosenversicherung", "correct": true}]}]}, "HF3": {"name": "Handlungsfeld 3", "subtitle": "Ausbildung durchführen", "questions": [{"id": "HF3-1", "prompt": "Die Gestaltung des ersten Ausbildungstags bedarf einiger Überlegungen, um die Auszubildenden positiv auf die Berufsausbildung im Betrieb einzustimmen. Welche der folgenden Maßnahmen können dazu führen, dieses Ziel zu erreichen?", "multiple": true, "correctCount": 3, "options": [{"text": "Erläuterung des betrieblichen Ausbildungsplans", "correct": true}, {"text": "Besprechung organisatorischer Inhalte (Arbeitszeit, Pausen, Berufsschulbesuch)", "correct": true}, {"text": "Mitarbeit in den Abteilungen, in denen zurzeit Personalnot herrscht", "correct": false}, {"text": "Bekanntgabe der Konsequenzen bei Fehlverhalten in der Berufsschule", "correct": false}, {"text": "Betriebsbegehung mit Hinweis auf die ausbildungsrelevanten Abteilungen", "correct": true}, {"text": "Vorstellung des Ausbilders als „Herr im Haus“", "correct": false}]}, {"id": "HF3-2", "prompt": "Welche Bedeutung hat die Probezeit im Ausbildungsverhältnis?", "multiple": false, "correctCount": 1, "options": [{"text": "Dem Auszubildenden sollen ausschließlich solche Aufgaben übertragen werden, die von den Fachkräften aus terminlichen Gründen nicht zu bewältigen sind.", "correct": false}, {"text": "Dem Auszubildenden sollen während der Probezeit immer dieselben Aufgaben übertragen werden, um seine Konzentrationsfähigkeit zu fördern.", "correct": false}, {"text": "Dem Auszubildenden sollen während der Probezeit keine Aufgaben übertragen werden. Er sollte sich vielmehr Aufgaben, die ihm Freude bereiten, selbst aussuchen.", "correct": false}, {"text": "Dem Auszubildenden sollen berufstypische Aufgaben übertragen werden, die erkennen lassen, ob ausreichend Eignung und Neigung beim Auszubildenden vorliegen.", "correct": true}, {"text": "Der Probezeit ist seitens des Ausbildenden gar keine Bedeutung beizumessen, da diese in jedem Fall verlängert werden kann.", "correct": false}]}, {"id": "HF3-3", "prompt": "Welche Aussagen zur Gestaltung der Probezeit sind zutreffend?", "multiple": true, "correctCount": 2, "options": [{"text": "Der Auszubildende sollte nur monotone Arbeiten ausführen, damit er sich an den Arbeitsalltag gewöhnt.", "correct": false}, {"text": "In der Probezeit muss kein besonderes Augenmerk auf den Auszubildenden gerichtet werden.", "correct": false}, {"text": "Gerade in der Probezeit sollte der Auszubildende überwiegend sich selbst überlassen sein, um seine Selbstständigkeit zu fördern.", "correct": false}, {"text": "Dem Auszubildenden sollten unterschiedliche berufstypische Aufgaben gestellt werden.", "correct": true}, {"text": "Der Auszubildende ist regelmäßig zu beobachten. Zum Ende der Probezeit ist eine Beurteilung anzufertigen.", "correct": true}]}, {"id": "HF3-4", "prompt": "Lernen ist ein zentraler Begriff in der Pädagogik. Welche der nachfolgenden Aussagen zum Lernen treffen zu?", "multiple": true, "correctCount": 4, "options": [{"text": "Lernen geschieht durch Auseinandersetzung mit der Umwelt.", "correct": true}, {"text": "Lernen ist ausschließlich die Aneignung von Wissen.", "correct": false}, {"text": "Lernen bedeutet auch das Aneignen von Fertigkeiten.", "correct": true}, {"text": "Einstellungen können nicht erlernt werden, sondern sind anlagebedingt vorgegeben.", "correct": false}, {"text": "Lernen ist ein fortlaufender Prozess.", "correct": true}, {"text": "Einstellungen können nicht durch Lernen verändert werden.", "correct": false}, {"text": "Lernen bedeutet eine langfristige Verhaltensänderung.", "correct": true}, {"text": "Lernen ist insbesondere das Wiederholen von bereits erworbenen Kenntnissen und Fertigkeiten.", "correct": false}]}, {"id": "HF3-6", "prompt": "Die Gliederung des Lernstoffs ist eine wichtige Aufgabe des Ausbilders, die zur Motivation und zum Lernerfolg beitragen kann. Welche Aussagen hierzu sind richtig?", "multiple": true, "correctCount": 2, "options": [{"text": "Der Ausbilder stellt zunächst das Bekannte des Lerninhalts dar und fügt dann Neues hinzu.", "correct": true}, {"text": "Der Ausbilder konzentriert sich in seiner Unterweisung nicht nur auf die wesentlichen Kernpunkte, sondern stellt Nebenaspekte des Lerninhalts genauso bedeutsam heraus.", "correct": false}, {"text": "Der Ausbilder erklärt zuerst den gesamten Arbeitsgang und erläutert dann die Teilschritte.", "correct": true}]}, {"id": "HF3-7", "prompt": "Alle Lernmodelle gehen davon aus, dass Lernen ohne Motivation nicht möglich ist. Welche der aufgeführten Maßnahmen dienen nicht dazu, die Lernmotivation bei Auszubildenden zu fördern?", "multiple": false, "correctCount": 1, "options": [{"text": "Der Ausbilder nimmt mögliche Hemmungen vor der entsprechenden Aufgabe, indem er Erfolgszuversicht ausspricht.", "correct": false}, {"text": "Bei der Planung von Aufgaben versucht der Ausbilder Über- oder Unterforderung der Auszubildenden auszuschließen.", "correct": false}, {"text": "Das Nennen des Lernziels durch den Ausbilder ist nicht notwendig, da die meisten Auszubildenden dieses nicht verstehen würden.", "correct": true}, {"text": "Der Ausbilder stellt praxisorientierte Aufgaben, um den Auszubildenden zu verdeutlichen, wie wichtig das Erlernte für die spätere berufliche Tätigkeit ist.", "correct": false}]}, {"id": "HF3-8", "prompt": "Nach dem Lernmodell kommt der Stufe der Lösung eine bedeutende Funktion zu. Welche Hinweise können Sie dazu vor dem Hintergrund einer handlungsorientierten Ausbildung geben?", "multiple": false, "correctCount": 1, "options": [{"text": "Der Ausbilder sollte immer die Lösung einer Aufgabe präsentieren, um Zeit zu sparen.", "correct": false}, {"text": "Die Auszubildenden sollen immer die Lösung selbst erarbeiten, um die Grenzen des eigenen Könnens zu erfahren.", "correct": false}, {"text": "Die Auszubildenden sollten mit zunehmender Ausbildungsdauer aufgefordert werden, sich die Lösung selbst zu erarbeiten. Das trägt zu einem höheren Behaltenseffekt bei.", "correct": true}]}, {"id": "HF3-9", "prompt": "Das Festigen des erlernten Stoffs ist ebenfalls Bestandteil des Lernmodells. Welche Aussagen zum Üben sind zutreffend?", "multiple": true, "correctCount": 2, "options": [{"text": "Sollte der Auszubildende eine erlernte Tätigkeit bereits beim einmaligen Nachmachen fehlerfrei ausgeführt haben, so kann das Üben entfallen.", "correct": false}, {"text": "Die Übungsaufgabe sollte variiert werden, um Monotonie zu vermeiden.", "correct": true}, {"text": "Auf eine Kontrolle des Übungsfortschritts durch den Ausbilder wird verzichtet, um das Lerninteresse des Auszubildenden nicht herabzusetzen.", "correct": false}, {"text": "Der Übungserfolg sollte vom Ausbilder entsprechend gelobt werden.", "correct": true}]}, {"id": "HF3-10", "prompt": "Zum Lernmodell gehört auch der Transfer des Gelernten. Was ist darunter zu verstehen?", "multiple": false, "correctCount": 1, "options": [{"text": "Ähnliche Problemstellungen, die auf andere Art und Weise zu lösen sind", "correct": false}, {"text": "Eine Festigung des Gelernten durch häufiges Wiederholen", "correct": false}, {"text": "Gleiche Aufgabe, die auf andere Art und Weise zu lösen ist", "correct": false}, {"text": "Eine Übertragung des Gelernten auf vergleichbare Situationen", "correct": true}]}, {"id": "HF3-11", "prompt": "Lernen durch Versuch, Irrtum und Erfolg ist eine Lernart. Welche Vorteile hat diese Art des Lernens?", "multiple": false, "correctCount": 1, "options": [{"text": "Da diese Lernart sehr zeitaufwendig sein kann, bedeutet sie immer eine entsprechende Entlastung für den Ausbilder.", "correct": false}, {"text": "Diese Lernart ist für die betriebliche Ausbildung ungeeignet, da sie sehr schnell zur Entmutigung der Auszubildenden führt.", "correct": false}, {"text": "Die durch eigene Aktivitäten der Auszubildenden gefundenen Erkenntnisse haben einen höheren Behaltenseffekt als die vom Ausbilder präsentierten.", "correct": true}]}, {"id": "HF3-12", "prompt": "Die Vorbildwirkung ist zentraler Gegenstand des Lernens am Modell. Welche Aussagen sind zutreffend?", "multiple": true, "correctCount": 2, "options": [{"text": "Die Auszubildenden übernehmen unbewusst Verhaltensweisen, die ihnen erstrebenswert und Erfolg versprechend für das eigene Handeln erscheinen.", "correct": true}, {"text": "Es werden nur positive Vorbilder als Modelle angenommen.", "correct": false}, {"text": "Ausbilder und Fachkräfte sind sich nicht immer ihrer Vorbildfunktion bewusst.", "correct": true}, {"text": "Im Bereich der Arbeitssicherheit ist die Vorbildwirkung nicht hoch, denn die Arbeitsschutzvorschriften haben für die Auszubildenden einen höheren Stellenwert.", "correct": false}, {"text": "Vorbildwirkung hat einen hohen emotionalen Anteil, der keinerlei Einfluss auf Auszubildende hat.", "correct": false}]}, {"id": "HF3-13", "prompt": "Welche Fragen sollte sich der Ausbilder im Hinblick auf das Lernen am Modell stellen?", "multiple": false, "correctCount": 1, "options": [{"text": "Soll ich den Auszubildenden zeigen, wie sie sich zu verhalten haben und sie ausdrücklich darauf hinweisen?", "correct": false}, {"text": "Soll ich mich den von den Auszubildenden erwarteten Verhaltensweisen anpassen?", "correct": false}, {"text": "Soll ich mein eigenes Verhalten dahin gehend überprüfen, ob es den Ansprüchen, die ich an die Auszubildenden stelle, immer gerecht wird?", "correct": true}, {"text": "Soll ich die Auszubildenden nur mündlich auf die erwünschten Verhaltensweisen hinweisen?", "correct": false}, {"text": "Soll ich den Auszubildenden technische Modelle zum besseren Verständnis zur Verfügung stellen?", "correct": false}]}, {"id": "HF3-14", "prompt": "Eine erfolgreiche Ausbildung hängt in entscheidendem Maß vom Wirken des Ausbilders und seinen Einstellungen ab. Welche Aussagen des Ausbilders können dazu beitragen, eine Ausbildung positiv zu gestalten?", "multiple": false, "correctCount": 1, "options": [{"text": "„Was meine Auszubildenden in ihrer Freizeit machen, interessiert mich nicht. Das gehört schließlich nicht zur Ausbildung dazu.“", "correct": false}, {"text": "„Lehrjahre sind keine Herrenjahre. Meine Auszubildenden haben sich strikt meiner Person unterzuordnen.“", "correct": false}, {"text": "„Die Auszubildenden sollen möglichst reibungslos die Ausbildung durchlaufen, am besten ohne mich als Ausbilder zu behelligen.“", "correct": false}, {"text": "„Ich verstehe mich als Partner und Anwalt der Auszubildenden. Sie sollen auch mit Problemen aus ihrem Privatleben zu mir kommen können.“", "correct": true}, {"text": "„Mein Wort ist Gesetz. Darüber wird nicht diskutiert. Das würde meine Autorität in Frage stellen.“", "correct": false}]}, {"id": "HF3-15", "prompt": "Häufig werden die Begriffe „persönliche Autorität“ und „autoritäres Verhalten“ im gleichen Zusammenhang verwendet. Welche Aussagen hierzu sind zutreffend?", "multiple": true, "correctCount": 2, "options": [{"text": "Der Ausbilder, der einen autoritären Führungsstil anwendet, genießt immer die Hochachtung der Auszubildenden.", "correct": false}, {"text": "Autoritäres Verhalten und Autorität sind von der Wortbedeutung her gleich.", "correct": false}, {"text": "Der Ausbilder, der überwiegend einen autoritären Führungsstil anwendet, kann zur Einschüchterung und somit zur Demotivation der Auszubildenden beitragen.", "correct": true}, {"text": "Persönliche Autorität erwirbt sich der Ausbilder durch Einstellungen wie Partner der Auszubildenden sein zu wollen, eigene Schwächen zugeben zu können und ein offenes Ohr für die Belange der Auszubildenden zu haben.", "correct": true}, {"text": "Persönliche Autorität erhält der Ausbilder durch die übertragene Funktion. Sie braucht nicht erworben zu werden.", "correct": false}]}, {"id": "HF3-16", "prompt": "Lob ist ein wichtiges Erziehungsmittel in der Ausbildung. Welche Aussagen hierzu sind zutreffend?", "multiple": false, "correctCount": 1, "options": [{"text": "Lob sollte überhaupt nicht erteilt werden, da es schnell zur Selbstüberschätzung der Auszubildenden führen kann.", "correct": false}, {"text": "Lob in der Ausbildung ist relativ wirkungslos, da die Auszubildenden sich heute Anerkennung im Freizeitbereich erwerben.", "correct": false}, {"text": "Lob sollte bei jeder Gelegenheit erteilt werden, um die Motivation der Auszubildenden zu erhalten.", "correct": false}, {"text": "Lob sollte bei über dem Durchschnitt liegenden Leistungen des einzelnen Auszubildenden erteilt werden, um ihn in seiner individuellen Lernleistung anzuspornen.", "correct": true}]}, {"id": "HF3-17", "prompt": "Wann sollte ein Lob ausgesprochen werden?", "multiple": false, "correctCount": 1, "options": [{"text": "Nach Möglichkeit unmittelbar nach der erbrachten Leistung, da der Effekt dann am nachhaltigsten ist.", "correct": true}, {"text": "Der Zeitpunkt des Lobs ist nicht ausschlaggebend. Wichtig ist, dass überhaupt Lob für entsprechend erbrachte Leistungen erteilt wird.", "correct": false}, {"text": "Nach Möglichkeit erst nach einem größeren Zeitraum, um den Auszubildenden dann die Gelegenheit zum Nachdenken über die erbrachte Leistung zu geben.", "correct": false}]}, {"id": "HF3-18", "prompt": "Tadel muss mitunter als Erziehungsmittel in der Ausbildung eingesetzt werden. Welche Aussagen sind hierbei zutreffend?", "multiple": true, "correctCount": 2, "options": [{"text": "Der Tadel für einen einzelnen Auszubildenden sollte vor allen Auszubildenden ausgesprochen werden, um allen die Konsequenzen bei Fehlverhalten vor Augen zu führen.", "correct": false}, {"text": "Der Tadel sollte nur unter vier Augen angeführt werden, um das Selbstwertgefühl des Auszubildenden nicht zu sehr zu beschädigen.", "correct": true}, {"text": "Der Tadel darf in einer emotional aufgeheizten Situation die Gesamtpersönlichkeit des Auszubildenden, nicht nur das konkrete Fehlverhalten treffen.", "correct": false}, {"text": "Der Tadel kann Beleidigungen und Kränkungen enthalten, um dem Auszubildenden die Wirkung seines Fehlverhaltens auf den Ausbilder zu zeigen.", "correct": false}, {"text": "Der Tadel darf nur auf das konkrete Fehlverhalten bezogen sein und sollte sachlich, das heißt, nicht im Affekt ausgesprochen sein.", "correct": true}, {"text": "Der Tadel sollte keinerlei Konsequenzen bei weiteren Fehlverhalten beinhalten, damit der Auszubildende nicht allzu verschüchtert wird.", "correct": false}]}, {"id": "HF3-19", "prompt": "Die Strafe ist ein weiteres Erziehungsmittel im Ausbildungsbereich. Welche Aussagen sind hier zutreffend?", "multiple": false, "correctCount": 1, "options": [{"text": "Strafmaßnahmen im Ausbildungsbereich sind gemäß BBiG generell verboten.", "correct": false}, {"text": "Hat der Tadel nicht gewirkt und sich das Fehlverhalten fortgesetzt, so ist die Strafe entsprechend der angekündigten Androhung konsequent umzusetzen.", "correct": true}, {"text": "Der Entzug von Vergünstigungen wird heute von Auszubildenden nicht als Strafe angesehen.", "correct": false}, {"text": "Strafen haben im Allgemeinen keinen Erziehungseffekt bei Auszubildenden.", "correct": false}, {"text": "Bei massivem Fehlverhalten eines einzelnen Auszubildenden sollten alle Auszubildenden bestraft werden.", "correct": false}, {"text": "Die angedrohte Strafe kann trotz fortgesetztem Fehlverhalten unterbleiben, da der Ausbilder ansonsten seine Autorität verlieren würde.", "correct": false}]}, {"id": "HF3-20", "prompt": "Lernziele sollen in allen pädagogischen Prozessen definiert werden. Welche Absicht steckt hinter dieser Anforderung?", "multiple": true, "correctCount": 2, "options": [{"text": "Lernziele dienen dazu, überprüfen zu können, ob der beabsichtigte Lernerfolg eingetreten ist.", "correct": true}, {"text": "Lernziele dienen dazu, zu Beginn einer Ausbildungseinheit feststellen zu können, ob der zu vermittelnde Lernstoff den Auszubildenden bereits bekannt ist.", "correct": false}, {"text": "Ohne präzise Lernzielbestimmung könnte der Lernprozess richtungslos und damit für Ausbilder und Auszubildenden unklar bleiben, ob der gewünschte Lernerfolg eingetreten ist.", "correct": true}, {"text": "Lernziele sollen zwar bestimmt werden, haben aber für die Ausbildung im Betrieb eine erheblich geringere Bedeutung.", "correct": false}]}, {"id": "HF3-21", "prompt": "Lernziele werden in Richt-/Grob-/Feinlernziele eingeteilt. Worin unterscheiden sich die Lernzielkategorien?", "multiple": true, "correctCount": 3, "options": [{"text": "Das Richtlernziel ist sehr allgemein gehalten und gibt bloß die Richtung an.", "correct": true}, {"text": "Das Feinlernziel drückt nicht das überprüfbare, gewünschte Endverhalten aus.", "correct": false}, {"text": "Das Groblernziel hat einen mittleren Grad an Eindeutigkeit, beschreibt aber nicht das überprüfbare, gewünschte Endverhalten.", "correct": true}, {"text": "Das Groblernziel steht über dem Richtlernziel und gibt bloß die grobe Richtung an.", "correct": false}, {"text": "Das Feinlernziel ist so präzise definiert, dass das gewünschte Endverhalten überprüfbar ist.", "correct": true}]}, {"id": "HF3-22", "prompt": "Welche der nachfolgend aufgeführten Lernzielkategorien finden Sie im Ausbildungsrahmenplan?", "multiple": true, "correctCount": 2, "options": [{"text": "Leitlernziel", "correct": false}, {"text": "Richtlernziel", "correct": true}, {"text": "Groblernziel", "correct": true}, {"text": "Feinlernziel", "correct": false}]}, {"id": "HF3-23", "prompt": "Beim Lernen werden drei Lernbereiche unterschieden. Welche der nachfolgend aufgeführten Lernziele lassen sich dem kognitiven Lernbereich zuordnen?", "multiple": true, "correctCount": 2, "options": [{"text": "Die Inhalte des Ausbildungsvertrags erklären können", "correct": true}, {"text": "Die Aufgaben des Betriebsrats beschreiben können", "correct": true}, {"text": "Den Keilriemen an einem Pkw auswechseln können", "correct": false}, {"text": "Im Team arbeiten können", "correct": false}, {"text": "Kundenorientiert arbeiten können", "correct": false}, {"text": "Einen Fensterrahmen lackieren können", "correct": false}]}, {"id": "HF3-24", "prompt": "Welche der nachfolgend aufgeführten Lernziele sind dem psychomotorischen Lernbereich zuzuordnen?", "multiple": false, "correctCount": 1, "options": [{"text": "Übertragene Aufgaben gewissenhaft und sorgfältig ausführen können", "correct": false}, {"text": "Die Pflichten als Auszubildender nennen können", "correct": false}, {"text": "Übertragene Aufgaben selbstständig planen können", "correct": false}, {"text": "Die einschlägigen Arbeitssicherheitsvorschriften für einen Arbeitsbereich beschreiben \n    können", "correct": false}, {"text": "Einen Radwechsel an einem Pkw ausführen können", "correct": true}, {"text": "Den Schmelzpunkt von Blei benennen können", "correct": false}]}, {"id": "HF3-25", "prompt": "Welche der nachfolgend aufgeführten Lernziele sind dem affektiven Lernbereich zuzuordnen?", "multiple": true, "correctCount": 2, "options": [{"text": "Zwischen Aktiva und Passiva im Rechnungswesen unterscheiden können", "correct": false}, {"text": "Hilfsbereit sein können", "correct": true}, {"text": "Einfühlungsvermögen bei einer Gruppendiskussion zeigen können", "correct": true}, {"text": "Das Farbband einer Schreibmaschine wechseln können", "correct": false}, {"text": "Die Bedeutung des Berufsschulunterrichts im Dualen System erklären können", "correct": false}, {"text": "Eine Steckdose an einer Wand anbringen können", "correct": false}]}, {"id": "HF3-26", "prompt": "Welche der folgenden Beschreibungen umreißt den Begriff „aktives Lernen“?", "multiple": false, "correctCount": 1, "options": [{"text": "... autodidaktisches Lernen.", "correct": false}, {"text": "... Lernprozesse, die durch den Ausbilder aktiv gestaltet werden.", "correct": false}, {"text": "... Situationen, in denen der Auszubildende selbstständig Eigeninitiative zeigt \n        oder erwartet wird, dass er diese entwickelt.", "correct": true}, {"text": "... Ausbildungsmethoden, die vom Ausbilder bestimmt werden.", "correct": false}, {"text": "... die Lernmöglichkeiten, die der Betrieb zur Verfügung stellt.", "correct": false}]}, {"id": "HF3-27", "prompt": "Welches Persönlichkeitsmerkmal oder welche Fähigkeit ist die wichtigste Voraussetzung zum aktiven und selbstständigen Lernen?", "multiple": false, "correctCount": 1, "options": [{"text": "Leistungsbereitschaft", "correct": true}, {"text": "Kreativität", "correct": false}, {"text": "Teamfähigkeit", "correct": false}, {"text": "Ordnung halten", "correct": false}, {"text": "Ausdauer", "correct": false}, {"text": "Kommunikationsfähigkeit", "correct": false}]}, {"id": "HF3-28", "prompt": "Wie können Sie die Bereitschaft zum aktiven Lernen beim Auszubildenden fördern?", "multiple": true, "correctCount": 2, "options": [{"text": "Realistische Ziele setzen", "correct": true}, {"text": "Die Konsequenzen für die Abschlussprüfung darstellen", "correct": false}, {"text": "Teilerfolge ermöglichen", "correct": true}, {"text": "Positive Erfolge negativ beurteilen", "correct": false}]}, {"id": "HF3-29", "prompt": "Welche Schlüsselqualifikationen (Fähigkeiten) würden Sie besonders fördern?", "multiple": true, "correctCount": 6, "options": [{"text": "Selbstständigkeit in der Arbeitsabwicklung und -planung", "correct": true}, {"text": "Sauberkeit und Ordnung halten", "correct": false}, {"text": "Eigeninitiative ergreifen können", "correct": true}, {"text": "Teamfähigkeit", "correct": false}, {"text": "Nach Anweisung arbeiten können", "correct": false}, {"text": "Entscheidungsfähigkeit", "correct": true}, {"text": "Eigene Grenzen erkennen können", "correct": true}, {"text": "Feinmotorische Fähigkeiten", "correct": false}, {"text": "Systematisches, analytisches Vorgehen", "correct": true}, {"text": "Lern- und Transferfähigkeit", "correct": true}, {"text": "Ehrlich sein", "correct": false}]}, {"id": "HF3-32", "prompt": "Welche der aufgeführten Arbeitsaufgaben ordnen Sie der Methodenkompetenz zu?", "multiple": true, "correctCount": 2, "options": [{"text": "... selbstständig Entscheidungen treffen.", "correct": true}, {"text": "... eine Banküberweisung ausfüllen.", "correct": false}, {"text": "... mit anderen zusammenarbeiten.", "correct": false}, {"text": "... Verantwortung für andere übernehmen.", "correct": false}, {"text": "... selbstständig eine Arbeitsaufgabe planen.", "correct": true}]}, {"id": "HF3-33", "prompt": "Welche der aufgeführten Arbeitsaufgaben ordnen Sie der Sozialkompetenz zu?", "multiple": true, "correctCount": 2, "options": [{"text": "... selbstständig Entscheidungen treffen.", "correct": false}, {"text": "... eine Banküberweisung ausfüllen.", "correct": false}, {"text": "... mit anderen zusammenarbeiten.", "correct": true}, {"text": "... Verantwortung für andere übernehmen.", "correct": true}, {"text": "... selbstständig eine Arbeitsaufgabe planen.", "correct": false}]}, {"id": "HF3-34", "prompt": "Welche Fragen stellen Sie sich, die die Fachkräfte vor Ort betreffen?", "multiple": true, "correctCount": 3, "options": [{"text": "Haben die Fachkräfte eine ausreichende fachliche Qualifikation?", "correct": true}, {"text": "Ist Fachliteratur ausreichend vorhanden?", "correct": false}, {"text": "Sind die Arbeitsaufgaben interessant und vielfältig?", "correct": false}, {"text": "Besteht Bereitschaft, mit der Ausbildungsabteilung zu kooperieren?", "correct": true}, {"text": "Sind die Fachkräfte persönlich geeignet?", "correct": true}]}, {"id": "HF3-35", "prompt": "Welche Fragen stellen Sie sich, die die Arbeitsaufgaben dort betreffen?", "multiple": true, "correctCount": 3, "options": [{"text": "Liegen bereits Ausbildungserfahrungen der Fachkräfte vor?", "correct": false}, {"text": "Wie hoch sind die Anforderungen an die Auszubildenden?", "correct": true}, {"text": "Welche Vorkenntnisse müssen die Auszubildenden mitbringen?", "correct": true}, {"text": "Ist eine Aufsicht vorhanden?", "correct": false}, {"text": "Lässt die Arbeitsorganisation ein selbstständiges Arbeiten zu?", "correct": true}]}, {"id": "HF3-36", "prompt": "Welche Fragen stellen Sie sich, die die Lernmöglichkeiten an diesen Arbeitsplätzen betreffen?", "multiple": true, "correctCount": 2, "options": [{"text": "Ist eine Unfallbelehrung notwendig?", "correct": false}, {"text": "Können die zugeordneten Ausbildungsziele erreicht werden?", "correct": true}, {"text": "Ist eine Betreuung gewährleistet?", "correct": false}, {"text": "Kann hier die Sozialkompetenz gefördert werden?", "correct": true}, {"text": "Sind Umkleide- und Sozialräume vorhanden?", "correct": false}]}, {"id": "HF3-37", "prompt": "Welche Möglichkeiten der Zusammenarbeit zwischen Fachabteilungen und Ausbildungsabteilung sind sinnvoll und notwendig?", "multiple": true, "correctCount": 3, "options": [{"text": "Ernennung von Ausbildungsbeauftragten in den Fachabteilungen", "correct": true}, {"text": "Regelmäßige Treffen zum Erfahrungsaustausch", "correct": true}, {"text": "Gemeinsamer Betriebsausflug", "correct": false}, {"text": "Gemeinsame Erstellung eines Beurteilungssystems", "correct": true}, {"text": "Die Ausbildungsabteilung gibt die Ziele vor.", "correct": false}]}, {"id": "HF3-38", "prompt": "Welche der folgenden wichtigen Fragen ist unbeantwortet geblieben? (Arbeitsplatzbeschreibung Warenlager)", "multiple": false, "correctCount": 1, "options": [{"text": "Die Frage nach der Qualifikation der betreuenden Fachkraft", "correct": false}, {"text": "Die Frage nach den zu erledigenden Arbeitsaufgaben", "correct": false}, {"text": "Die Frage nach der Arbeitszeit", "correct": false}, {"text": "Die Frage der Arbeitssicherheit", "correct": true}, {"text": "Die Frage nach der Ausstattung des Arbeitsplatzes", "correct": false}]}, {"id": "HF3-39", "prompt": "Welche Schlüsselqualifikationen können an diesem Arbeitsplatz besonders gefördert werden?", "multiple": false, "correctCount": 1, "options": [{"text": "Kommunikationsfähigkeit", "correct": false}, {"text": "Teamfähigkeit", "correct": false}, {"text": "Kooperationsfähigkeit", "correct": false}, {"text": "Planungsfähigkeit", "correct": true}, {"text": "Lernfähigkeit", "correct": false}]}, {"id": "HF3-40", "prompt": "Welche Person wäre als Ersatz für die Fachkraft geeignet?", "multiple": false, "correctCount": 1, "options": [{"text": "Sabine Wessels, 22 Jahre alt, seit zwei Jahren im Lager tätig", "correct": false}, {"text": "Ralf Franke, 32 Jahre alt, Fachkraft für Lagerwirtschaft, AEVO-Prüfung", "correct": true}, {"text": "Torsten Schmidt, 21 Jahre alt, Bürokaufmann", "correct": false}, {"text": "Klara Reif, 54 Jahre alt, Mutter von drei Kindern", "correct": false}, {"text": "Otto Wild, 43 Jahre alt, Gabelstaplerfahrer, zehn Jahre im Lager tätig", "correct": false}]}, {"id": "HF3-41", "prompt": "Welche Methoden sind für die Ausbildung vor Ort sinnvoll?", "multiple": true, "correctCount": 4, "options": [{"text": "Brainstorming", "correct": false}, {"text": "Vier-Stufen-Methode", "correct": true}, {"text": "Anleitung bei Bedarf", "correct": true}, {"text": "Rollenspiel", "correct": false}, {"text": "Demonstration", "correct": false}, {"text": "Leittextmethode", "correct": false}, {"text": "Praktische Anleitung über Arbeitsblätter", "correct": true}, {"text": "Vortrag", "correct": false}, {"text": "Einarbeitungsmethode", "correct": true}]}, {"id": "HF3-42", "prompt": "Von welchen Kriterien ist es abhängig, welche Methode anzuwenden ist?", "multiple": true, "correctCount": 3, "options": [{"text": "Art der Arbeitsaufgabe", "correct": true}, {"text": "Zur Verfügung stehende Zeit", "correct": false}, {"text": "Ausbildungsstand des Auszubildenden", "correct": true}, {"text": "Selbstständiges Lernvermögen des Auszubildenden", "correct": true}, {"text": "Einsatzbereitschaft der Fachkraft", "correct": false}, {"text": "Leistungswillen des Auszubildenden", "correct": false}]}, {"id": "HF3-45", "prompt": "Welches Merkmal trifft auf die erste Stufe der Vier-Stufen-Methode zu?", "multiple": false, "correctCount": 1, "options": [{"text": "... in der Lage sein, die Arbeitsaufgabe selbstständig zu erledigen.", "correct": false}, {"text": "... die erlernte Fertigkeit durch Üben festigen.", "correct": false}, {"text": "... dem Ausbilder erklären, was bei der Arbeitsaufgabe zu beachten ist.", "correct": false}, {"text": "... die Aufgabe verstanden und Interesse gewonnen haben.", "correct": true}, {"text": "... beobachten, was der Ausbilder vormacht.", "correct": false}]}, {"id": "HF3-46", "prompt": "Welches Merkmal trifft auf die zweite Stufe der Vier-Stufen-Methode zu?", "multiple": false, "correctCount": 1, "options": [{"text": "... in der Lage sein, die Arbeitsaufgabe selbstständig zu erledigen.", "correct": false}, {"text": "... die erlernte Fertigkeit durch Üben festigen.", "correct": false}, {"text": "... dem Ausbilder erklären, was bei der Arbeitsaufgabe zu beachten ist.", "correct": false}, {"text": "... die Aufgabe verstanden und Interesse gewonnen haben.", "correct": false}, {"text": "... beobachten, was der Ausbilder vormacht.", "correct": true}]}, {"id": "HF3-47", "prompt": "Welches Merkmal trifft auf die dritte Stufe der Vier-Stufen-Methode zu?", "multiple": false, "correctCount": 1, "options": [{"text": "... an der Arbeitsaufgabe Interesse wecken.", "correct": false}, {"text": "... die Arbeitsschritte vormachen.", "correct": false}, {"text": "... den Übungsfortschritt beobachten.", "correct": false}, {"text": "... das Nachmachen beobachten.", "correct": true}, {"text": "... Möglichkeiten zur Transferbildung bereitstellen.", "correct": false}]}, {"id": "HF3-48", "prompt": "Welches Merkmal trifft auf die vierte Stufe der Vier-Stufen-Methode zu?", "multiple": false, "correctCount": 1, "options": [{"text": "... an der Arbeitsaufgabe Interesse wecken.", "correct": false}, {"text": "... die Arbeitsschritte vormachen.", "correct": false}, {"text": "... den Übungsfortschritt beobachten.", "correct": true}, {"text": "... das Nachmachen beobachten.", "correct": false}, {"text": "... den Arbeitsplatz vorbereiten.", "correct": false}]}, {"id": "HF3-50", "prompt": "Was gehört nicht in die erste Stufe (Vorbereitungsphase) der Vier-Stufen-Methode?", "multiple": false, "correctCount": 1, "options": [{"text": "Rechnungen und Überweisungsformulare zurechtlegen", "correct": false}, {"text": "Lernziel nennen und Interesse am Lernziel wecken", "correct": false}, {"text": "Erklären des Aufbaus einer Banküberweisung", "correct": true}, {"text": "Benötigte Arbeitsmittel erklären", "correct": false}]}, {"id": "HF3-52", "prompt": "Welche Aussage des Ausbilders würde nicht zur Motivation der Auszubildenden beitragen?", "multiple": false, "correctCount": 1, "options": [{"text": "„Wenn Sie den Umgang mit der Handbügelsäge sicher beherrschen, können Sie darauf aufbauende Tätigkeiten erlernen.“", "correct": false}, {"text": "„Ich werde Ihnen den richtigen Gebrauch der Handbügelsäge vormachen, gehe aber davon aus, dass Sie erhebliche Schwierigkeiten haben werden.“", "correct": true}, {"text": "„Dass Sie den Umgang beherrschen, werden Sie bei der Zwischenprüfung unter Beweis stellen müssen.“", "correct": false}, {"text": "„Das, was Sie heute erlernen sollen, hört sich wahrscheinlich erst einmal schwierig an. Ich werde Sie entsprechend unterstützen.“", "correct": false}]}, {"id": "HF3-53", "prompt": "Wie kann der Ausbilder die Auszubildenden kontinuierlich motivieren?", "multiple": true, "correctCount": 2, "options": [{"text": "Der Ausbilder sollte am Ende der Unterweisung den Lernerfolg kommentarlos zur Kenntnis nehmen.", "correct": false}, {"text": "Da Auszubildende heute am besten in Stresssituationen lernen, sollten sie ständig und penibel kontrolliert werden.", "correct": false}, {"text": "Für erfolgte kleine Lernfortschritte sollten die Auszubildenden die Anerkennung des Ausbilders erfahren.", "correct": true}, {"text": "Bei erfolgreicher Arbeitsausführung sollte der Ausbilder die Auszubildenden loben.", "correct": true}, {"text": "Der Ausbilder sollte sich bereits beim Nachmachen anderen Aufgaben zuwenden.", "correct": false}]}, {"id": "HF3-54", "prompt": "Der dargestellte Lernprozess lässt sich einer Lernart zuordnen. Welche?", "multiple": false, "correctCount": 1, "options": [{"text": "Lernen durch Versuch, Irrtum und Erfolg", "correct": false}, {"text": "Lernen durch Einsicht", "correct": false}, {"text": "Lernen durch Nachmachen", "correct": true}]}, {"id": "HF3-56", "prompt": "Welche Ziele kann der Ausbilder durch einen Kurzvortrag erreichen?", "multiple": true, "correctCount": 3, "options": [{"text": "Einführung in eine neue Thematik", "correct": true}, {"text": "Vermittlung von Fertigkeiten", "correct": false}, {"text": "Erklärung von Ausbildungszielen und -absichten", "correct": true}, {"text": "Beachten von Unfallverhütungsvorschriften", "correct": false}, {"text": "Schnelle Vermittlung von Faktenwissen", "correct": true}]}, {"id": "HF3-57", "prompt": "Welche Hinweise sollte der Ausbilder beachten, um einen Kurzvortrag lernwirksam zu gestalten?", "multiple": true, "correctCount": 2, "options": [{"text": "Man sollte kurze und einfache Sätze formulieren.", "correct": true}, {"text": "Die sprachliche Darstellung sollte möglichst viele Fremdwörter beinhalten.", "correct": false}, {"text": "Zwischenfragen sollten nicht zugelassen werden.", "correct": false}, {"text": "Eine Gliederung ist nicht notwendig.", "correct": false}, {"text": "Der Vortrag soll durch anregende Beispiele interessanter gestaltet werden.", "correct": true}]}, {"id": "HF3-58", "prompt": "Bei welchen Ausbildungszielen würden Sie den Kurzvortrag lernwirksam einsetzen?", "multiple": true, "correctCount": 3, "options": [{"text": "... die wichtigsten Unfallvorschriften beachten.", "correct": false}, {"text": "... zwischen Brutto- und Nettokosten unterscheiden können.", "correct": true}, {"text": "... die Bedeutung der Wichtigkeit der neuen Aufgabe erkennen.", "correct": true}, {"text": "... ein Scheckeinreichungsformular ausfüllen können.", "correct": false}, {"text": "... ein Feinblech anreißen können.", "correct": false}, {"text": "... die Grundsatzaufgaben der Personalabteilung erkennen.", "correct": true}]}, {"id": "HF3-59", "prompt": "Was sollten Sie während eines Kurzvortrags beachten, um eine größtmögliche Lernmotivation zu erreichen?", "multiple": true, "correctCount": 3, "options": [{"text": "... eine kühle Atmosphäre schaffen.", "correct": false}, {"text": "... mit Ironie Fragen beantworten.", "correct": false}, {"text": "... mit freundlichem Humor den Vortrag auflockern.", "correct": true}, {"text": "... Gestik und Mimik angemessen einsetzen.", "correct": true}, {"text": "... sich auf das Wesentliche beschränken.", "correct": true}, {"text": "... während des Kurzvortrags schnell reden.", "correct": false}]}, {"id": "HF3-60", "prompt": "Wann sollte der Ausbilder das Lehrgespräch einsetzen bzw. welche Ziele können damit erreicht werden?", "multiple": true, "correctCount": 2, "options": [{"text": "... zum Informations- und Erfahrungsaustausch.", "correct": true}, {"text": "... zur Entwicklung von Wegen zur Problemlösung.", "correct": false}, {"text": "... zur Überleitung in ein neues Sachgebiet.", "correct": true}, {"text": "... zur Vermittlung von Fertigkeiten.", "correct": false}, {"text": "... zum Aufbau sozialer Bezüge in der Gruppe.", "correct": false}]}, {"id": "HF3-61", "prompt": "Bei wem liegt in der Regel die Führung des Lehrgesprächs?", "multiple": false, "correctCount": 1, "options": [{"text": "Es wird ein Gesprächsleiter aus den Reihen der Auszubildenden gewählt.", "correct": false}, {"text": "Ein Lehrgespräch bedarf keiner konkreten Führung.", "correct": false}, {"text": "Der Auszubildende, der sich im Gespräch als Wortführer durchsetzt.", "correct": false}, {"text": "Die Führung wird während des Gesprächs vom Ausbilder wahrgenommen.", "correct": true}, {"text": "Der Ausbilder bestimmt einen Auszubildenden.", "correct": false}]}, {"id": "HF3-63", "prompt": "Welche Schlüsselqualifikationen können mit dem Lehrgespräch insbesondere gefördert werden?", "multiple": false, "correctCount": 1, "options": [{"text": "Teamfähigkeit", "correct": false}, {"text": "Kommunikationsfähigkeit", "correct": true}, {"text": "Motorisches Geschick", "correct": false}, {"text": "Selbstständiges Planen", "correct": false}, {"text": "Selbstständiges Lernen", "correct": false}]}, {"id": "HF3-64", "prompt": "Das Lehrgespräch kann fragend entwickelt werden. Welche Anforderung soll die Frageformulierung erfüllen?", "multiple": true, "correctCount": 2, "options": [{"text": "Es sollen offene Fragen (Was? Wie? Warum?) gestellt werden.", "correct": true}, {"text": "Das Fragewort soll in der Mitte des Fragesatzes stehen.", "correct": false}, {"text": "Zuerst wird der Auszubildende angesprochen und dann wird ihm die Frage gestellt.", "correct": false}, {"text": "Fragen sollen als Impulse zum Weiterdenken anregen.", "correct": true}, {"text": "Alternativfragen sind am sinnvollsten.", "correct": false}]}, {"id": "HF3-65", "prompt": "In welchen Aussagen erfüllt der Ausbilder seine Aufgabe als Moderator richtig?", "multiple": true, "correctCount": 3, "options": [{"text": "... bestimmt die Beziehungsebenen zwischen den Gruppenmitgliedern.", "correct": false}, {"text": "... hilft bei der Einhaltung von aufgestellten Spielregeln.", "correct": true}, {"text": "... versucht konsequent, das gesteckte Ziel durchzusetzen.", "correct": false}, {"text": "... stellt klärende Fragen.", "correct": true}, {"text": "... hilft bei der sachlichen Gliederung der zu besprechenden Thematik.", "correct": true}]}, {"id": "HF3-66", "prompt": "Welche der folgenden Absichten kann durch den Ausbilder moderiert werden?", "multiple": true, "correctCount": 5, "options": [{"text": "Eine Diskussion zur Findung einer Problemlösung", "correct": true}, {"text": "Kenntnisse der wichtigsten Unfallverhütungsvorschriften", "correct": false}, {"text": "Eine Gruppenarbeit der Auszubildenden", "correct": true}, {"text": "Die Verteilung von Sachaufgaben innerhalb einer Gruppe", "correct": true}, {"text": "Die Vermittlung einer Grundfertigkeit", "correct": false}, {"text": "Eine Besprechung mit Zielvorgaben", "correct": true}, {"text": "Einarbeitung an einem neuen Arbeitsplatz", "correct": false}, {"text": "Ganzheitliche Projekte", "correct": true}]}, {"id": "HF3-68", "prompt": "Sie teilen die Auszubildenden in Gruppen auf. Wie wird diese Art der Gruppe pädagogisch bezeichnet?", "multiple": false, "correctCount": 1, "options": [{"text": "Primärgruppe", "correct": false}, {"text": "Informelle Gruppe", "correct": false}, {"text": "Formelle Gruppe", "correct": true}, {"text": "Arbeitsgruppe", "correct": false}, {"text": "Menge", "correct": false}]}, {"id": "HF3-69", "prompt": "Sie fordern die Auszubildenden auf, sich selbst in Gruppen aufzuteilen. Wie wird diese Art der Gruppe pädagogisch bezeichnet?", "multiple": false, "correctCount": 1, "options": [{"text": "Primärgruppe", "correct": false}, {"text": "Informelle Gruppe", "correct": true}, {"text": "Formelle Gruppe", "correct": false}, {"text": "Arbeitsgruppe", "correct": false}, {"text": "Menge", "correct": false}]}, {"id": "HF3-70", "prompt": "Was könnten Motive des Einzelnen gewesen sein, sich einer bestimmten Gruppe anzuschließen?", "multiple": true, "correctCount": 3, "options": [{"text": "Sympathie für andere", "correct": true}, {"text": "Entscheidungsdruck durch den Ausbilder", "correct": false}, {"text": "Verfolgen gleicher Ziele, gleicher Interessen", "correct": true}, {"text": "Der Wille, eine Aufgabe bzw. Rolle übernehmen zu wollen", "correct": true}, {"text": "Keine besonderen Motive", "correct": false}]}, {"id": "HF3-71", "prompt": "Welche Vorteile hat selbstgesteuertes Lernen in Form einer Gruppenarbeit?", "multiple": true, "correctCount": 3, "options": [{"text": "Die Gruppe bestimmt in einem zeitlichen Rahmen ihr Lerntempo selbst.", "correct": true}, {"text": "Das Lernen in der Gruppe kann effizienter sein, weil jeder Einzelne seine Stärken einbringen kann.", "correct": true}, {"text": "Die Gruppenarbeit entlastet den Ausbilder.", "correct": false}, {"text": "Der Stärkere kann sich dominant durchsetzen.", "correct": false}, {"text": "Die Teamfähigkeit der Einzelnen wird gefördert.", "correct": true}]}]}}};
+    const STORAGE_KEY = "aevo_quiz_custom_data_v2";
+    let QUIZ_DATA = loadData();
+
+    let selectedKey = "HF1";
+    let currentQuestions = [];
+    let currentIndex = 0;
+    let userAnswers = {};
+    let currentMode = "single";
+    let currentExamVariant = null;
+    let examSecondsLeft = 0;
+    let timerInterval = null;
+
+    let editorCurrentHf = "HF1";
+    let editorQuestionIndex = 0;
+
+    const hfCards = document.getElementById("hfCards");
+    const importInfo = document.getElementById("importInfo");
+    const setupView = document.getElementById("setupView");
+    const quizView = document.getElementById("quizView");
+    const resultView = document.getElementById("resultView");
+    const editorView = document.getElementById("editorView");
+    const questionCard = document.getElementById("questionCard");
+    const counter = document.getElementById("counter");
+    const liveScore = document.getElementById("liveScore");
+    const progressBar = document.getElementById("progressBar");
+    const quizModeLabel = document.getElementById("quizModeLabel");
+    const prevBtn = document.getElementById("prevBtn");
+    const questionNav = document.getElementById("questionNav");
+    const jumpToQuestion = document.getElementById("jumpToQuestion");
+    const timerBox = document.getElementById("timerBox");
+    const timerText = document.getElementById("timerText");
+    const nextBtn = document.getElementById("nextBtn");
+    const finishBtn = document.getElementById("finishBtn");
+
+    function deepClone(obj) {
+      return JSON.parse(JSON.stringify(obj));
+    }
+
+    function loadData() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return deepClone(DEFAULT_QUIZ_DATA);
+        const parsed = JSON.parse(raw);
+        return parsed && parsed.handlungsfelder ? parsed : deepClone(DEFAULT_QUIZ_DATA);
+      } catch (e) {
+        return deepClone(DEFAULT_QUIZ_DATA);
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(QUIZ_DATA));
+    }
+
+    function showView(name) {
+      setupView.classList.add("hidden");
+      quizView.classList.add("hidden");
+      resultView.classList.add("hidden");
+      editorView.classList.add("hidden");
+      if (name === "setup") setupView.classList.remove("hidden");
+      if (name === "quiz") quizView.classList.remove("hidden");
+      if (name === "result") resultView.classList.remove("hidden");
+      if (name === "editor") editorView.classList.remove("hidden");
+    }
+
+    function renderCards() {
+      hfCards.innerHTML = "";
+      Object.entries(QUIZ_DATA.handlungsfelder).forEach(([key, value]) => {
+        const skipped = QUIZ_DATA.sourceInfo.skippedMatchingTasks[key] || 0;
+        const card = document.createElement("div");
+        card.className = "card hf-card" + (selectedKey === key ? " selected" : "");
+        card.innerHTML = `
+          <div class="pill">${value.name}</div>
+          <div style="font-weight:700; margin-bottom:6px;">${value.subtitle}</div>
+          <div class="muted small">${value.questions.length} Multiple-Choice-Fragen</div>
+          <div class="muted small">${skipped ? skipped + " Zuordnungsaufgaben ausgelassen" : "Keine ausgelassenen Zuordnungsaufgaben"}</div>
+        `;
+        card.addEventListener("click", () => {
+          selectedKey = key;
+          renderCards();
+        });
+        hfCards.appendChild(card);
+      });
+
+      const skippedTotal = Object.values(QUIZ_DATA.sourceInfo.skippedMatchingTasks).reduce((a,b) => a+b, 0);
+      importInfo.textContent = `Importiert aus 3 Word-Dateien. Enthalten sind ${
+        Object.values(QUIZ_DATA.handlungsfelder).reduce((sum, hf) => sum + hf.questions.length, 0)
+      } Multiple-Choice-Fragen. ${skippedTotal} Zuordnungsaufgaben wurden ausgelassen. Zusätzlich gibt es 3 Prüfungsvarianten mit je 80 Fragen und 180 Minuten. Eigene Änderungen werden lokal im Browser gespeichert.`;
+    }
+
+    function mulberry32(a) {
+      return function() {
+        let t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    function seededShuffle(array, seed) {
+      const out = [...array];
+      const rand = mulberry32(seed);
+      for (let i = out.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [out[i], out[j]] = [out[j], out[i]];
+      }
+      return out;
+    }
+
+    function buildExamQuestions(variant) {
+      const seedMap = { A: 1101, B: 2202, C: 3303 };
+      const all = Object.values(QUIZ_DATA.handlungsfelder)
+        .flatMap(hf => hf.questions)
+        .map(q => ({ ...q, _sort: q.id }))
+        .sort((a, b) => a._sort.localeCompare(b._sort, 'de'));
+      const shuffled = seededShuffle(all, seedMap[variant] || 1101);
+      return shuffled.slice(0, Math.min(80, shuffled.length));
+    }
+
+    function clearTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
+
+    function formatTime(totalSeconds) {
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function updateTimerUI() {
+      timerText.textContent = formatTime(examSecondsLeft);
+      timerBox.classList.remove('warn', 'danger');
+      if (examSecondsLeft <= 900) timerBox.classList.add('danger');
+      else if (examSecondsLeft <= 1800) timerBox.classList.add('warn');
+    }
+
+    function startExamTimer() {
+      clearTimer();
+      examSecondsLeft = 180 * 60;
+      timerBox.classList.remove('hidden');
+      updateTimerUI();
+      timerInterval = setInterval(() => {
+        examSecondsLeft -= 1;
+        updateTimerUI();
+        if (examSecondsLeft <= 0) {
+          clearTimer();
+          saveCurrentAnswer();
+          alert('Die Prüfungszeit ist abgelaufen. Die Auswertung wird jetzt angezeigt.');
+          showResults();
+        }
+      }, 1000);
+    }
+
+    function stopExamMode() {
+      currentExamVariant = null;
+      clearTimer();
+      timerBox.classList.add('hidden');
+    }
+
+    function renderQuestionNav() {
+      questionNav.innerHTML = currentQuestions.map((q, idx) => {
+        const answered = (userAnswers[q.id] || []).length > 0 ? ' answered' : '';
+        const active = idx === currentIndex ? ' active' : '';
+        return `<button class="nav-chip${answered}${active}" data-idx="${idx}" type="button">${idx + 1}</button>`;
+      }).join('');
+      questionNav.querySelectorAll('.nav-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+          saveCurrentAnswer();
+          currentIndex = Number(btn.dataset.idx);
+          renderQuestion();
+        });
+      });
+      jumpToQuestion.min = 1;
+      jumpToQuestion.max = currentQuestions.length;
+      jumpToQuestion.value = currentIndex + 1;
+    }
+
+    function startQuiz(mode = "single") {
+      stopExamMode();
+      currentMode = mode;
+      const questions = mode === "all"
+        ? Object.values(QUIZ_DATA.handlungsfelder).flatMap(hf => hf.questions)
+        : QUIZ_DATA.handlungsfelder[selectedKey].questions;
+
+      currentQuestions = questions.map(q => ({ ...q, options: q.options.map((opt, idx) => ({ ...opt, originalIndex: idx })) }));
+      currentIndex = 0;
+      userAnswers = {};
+      quizModeLabel.textContent = mode === "all" ? "Alle Handlungsfelder" : QUIZ_DATA.handlungsfelder[selectedKey].name;
+      showView("quiz");
+      renderQuestion();
+    }
+
+    function startExam(variant) {
+      currentMode = "exam";
+      currentExamVariant = variant;
+      const questions = buildExamQuestions(variant);
+      currentQuestions = questions.map(q => ({ ...q, options: q.options.map((opt, idx) => ({ ...opt, originalIndex: idx })) }));
+      currentIndex = 0;
+      userAnswers = {};
+      quizModeLabel.textContent = `Prüfung ${variant} · 80 Fragen · 180 Minuten`;
+      showView("quiz");
+      startExamTimer();
+      renderQuestion();
+    }
+
+    function renderQuestion() {
+      const q = currentQuestions[currentIndex];
+      counter.textContent = `Frage ${currentIndex + 1} von ${currentQuestions.length}`;
+      const answeredCount = Object.keys(userAnswers).filter(id => (userAnswers[id] || []).length > 0).length;
+      liveScore.textContent = `Beantwortet: ${answeredCount} / ${currentQuestions.length}`;
+      progressBar.style.width = `${((currentIndex + 1) / currentQuestions.length) * 100}%`;
+
+      const inputType = q.multiple ? "checkbox" : "radio";
+      const allowedCount = q.correctCount || q.options.filter(o => o.correct).length || 1;
+      questionCard.innerHTML = `
+        <div class="pill">${q.id}</div>
+        <div class="question-title">${q.prompt}</div>
+        ${q.note ? `<div class="inline-note">${q.note}</div>` : ""}
+        <div class="hint" id="selectionHint">${q.multiple ? `Mehrfachauswahl: Du kannst genau ${allowedCount} Antworten ankreuzen.` : "Einfachauswahl: 1 Antwort ist richtig."}</div>
+        <div>
+          ${
+            q.options.map((opt, idx) => {
+              const checked = (userAnswers[q.id] || []).includes(idx) ? "checked" : "";
+              return `
+                <label class="option">
+                  <input type="${inputType}" name="question-${q.id}" value="${idx}" ${checked} />
+                  <span>${opt.text}</span>
+                </label>
+              `;
+            }).join("")
+          }
+        </div>
+      `;
+
+      questionCard.querySelectorAll("input").forEach(input => {
+        input.addEventListener("change", (event) => saveCurrentAnswer(event));
+      });
+      updateSelectionLimitUI();
+      renderQuestionNav();
+
+      prevBtn.disabled = currentIndex === 0;
+      nextBtn.classList.toggle("hidden", currentIndex === currentQuestions.length - 1);
+      finishBtn.classList.toggle("hidden", currentIndex !== currentQuestions.length - 1);
+    }
+
+    function updateSelectionLimitUI() {
+      const q = currentQuestions[currentIndex];
+      if (!q || !q.multiple) return;
+      const allowedCount = q.correctCount || q.options.filter(o => o.correct).length || 1;
+      const inputs = [...questionCard.querySelectorAll('input')];
+      const checkedCount = inputs.filter(input => input.checked).length;
+      const limitReached = checkedCount >= allowedCount;
+
+      inputs.forEach(input => {
+        input.disabled = !input.checked && limitReached;
+      });
+
+      const hint = document.getElementById('selectionHint');
+      if (hint) {
+        hint.textContent = `Mehrfachauswahl: ${checkedCount} von ${allowedCount} markiert.`;
+      }
+    }
+
+    function saveCurrentAnswer(event) {
+      const q = currentQuestions[currentIndex];
+      let checkedInputs = [...questionCard.querySelectorAll("input:checked")];
+      const allowedCount = q.correctCount || q.options.filter(o => o.correct).length || 1;
+
+      if (q.multiple && checkedInputs.length > allowedCount && event?.target?.checked) {
+        event.target.checked = false;
+        checkedInputs = [...questionCard.querySelectorAll("input:checked")];
+      }
+
+      const checked = checkedInputs.map(el => Number(el.value));
+      userAnswers[q.id] = checked;
+      const answeredCount = Object.keys(userAnswers).filter(id => (userAnswers[id] || []).length > 0).length;
+      liveScore.textContent = `Beantwortet: ${answeredCount} / ${currentQuestions.length}`;
+      updateSelectionLimitUI();
+    }
+
+    function compareAnswers(question, picked) {
+      const correct = question.options.map((o, idx) => o.correct ? idx : null).filter(v => v !== null);
+      const pickedSorted = [...picked].sort((a,b)=>a-b);
+      const correctSorted = [...correct].sort((a,b)=>a-b);
+      const exact = JSON.stringify(pickedSorted) === JSON.stringify(correctSorted);
+      const overlap = pickedSorted.filter(x => correctSorted.includes(x)).length;
+      let status = "bad";
+      if (exact) status = "good";
+      else if (overlap > 0) status = "partial";
+      return { correct, exact, status };
+    }
+
+    function showResults(questions = currentQuestions) {
+      clearTimer();
+      showView("result");
+      const list = document.getElementById("resultList");
+      let correctTotal = 0;
+      let wrongQuestions = [];
+
+      list.innerHTML = questions.map(q => {
+        const picked = userAnswers[q.id] || [];
+        const evalResult = compareAnswers(q, picked);
+        if (evalResult.exact) correctTotal += 1;
+        else wrongQuestions.push(q);
+
+        const pickedSet = new Set(picked);
+        return `
+          <div class="result-item ${evalResult.status}">
+            <div class="pill">${q.id}</div>
+            <div style="font-weight:700; margin: 4px 0 10px;">${q.prompt}</div>
+            ${q.note ? `<div class="inline-note small">${q.note}</div>` : ""}
+            <div class="small" style="margin-bottom:10px;">
+              ${evalResult.exact ? "Richtig beantwortet" : (evalResult.status === "partial" ? "Teilweise richtig" : "Falsch beantwortet")}
+            </div>
+            ${
+              q.options.map((opt, idx) => {
+                let cls = "answer-row";
+                let prefix = "";
+                if (opt.correct) { cls += " correct"; prefix = "✓ Richtige Antwort: "; }
+                if (pickedSet.has(idx) && !opt.correct) { cls += " wrong-picked"; prefix = "✗ Von dir gewählt: "; }
+                if (pickedSet.has(idx) && opt.correct) { prefix = "✓ Von dir gewählt und richtig: "; }
+                if (!prefix) prefix = "• ";
+                return `<div class="${cls}">${prefix}${opt.text}</div>`;
+              }).join("")
+            }
+          </div>
+        `;
+      }).join("");
+
+      document.getElementById("resultHeadline").textContent = `Du hast ${correctTotal} von ${questions.length} Fragen komplett richtig beantwortet.`;
+      document.getElementById("resultText").textContent = wrongQuestions.length
+        ? `${currentMode === "exam" ? "Prüfungsmodus beendet. " : ""}Unten siehst du für jede Frage deine Auswahl sowie die richtigen Antworten.`
+        : `Stark. Du hast alle Fragen in diesem Durchlauf komplett richtig gelöst.${currentMode === "exam" ? " Die Prüfungsvariante wurde vollständig abgeschlossen." : ""}`;
+
+      document.getElementById("retryWrongBtn").onclick = () => {
+        if (!wrongQuestions.length) {
+          alert("Es gibt keine falschen Fragen zum Wiederholen.");
+          return;
+        }
+        currentQuestions = wrongQuestions;
+        currentIndex = 0;
+        const preservedAnswers = {};
+        wrongQuestions.forEach(q => preservedAnswers[q.id] = []);
+        userAnswers = preservedAnswers;
+        showView("quiz");
+        renderQuestion();
+      };
+    }
+
+    function populateEditorHfSelect() {
+      const sel = document.getElementById("editorHfSelect");
+      sel.innerHTML = Object.entries(QUIZ_DATA.handlungsfelder)
+        .map(([key, hf]) => `<option value="${key}">${hf.name} – ${hf.subtitle}</option>`)
+        .join("");
+      sel.value = editorCurrentHf;
+    }
+
+    function renderQuestionList() {
+      const list = document.getElementById("questionList");
+      const questions = QUIZ_DATA.handlungsfelder[editorCurrentHf].questions;
+      if (!questions.length) {
+        list.innerHTML = '<div class="muted small">Noch keine Fragen in diesem Handlungsfeld.</div>';
+        clearEditorForm();
+        return;
+      }
+      if (editorQuestionIndex >= questions.length) editorQuestionIndex = questions.length - 1;
+      list.innerHTML = questions.map((q, idx) => `
+        <div class="q-item ${idx === editorQuestionIndex ? "active" : ""}" data-idx="${idx}">
+          <div style="font-weight:700;">${q.id}</div>
+          <div class="small muted">${q.prompt.slice(0, 90)}${q.prompt.length > 90 ? "..." : ""}</div>
+        </div>
+      `).join("");
+      list.querySelectorAll(".q-item").forEach(el => {
+        el.addEventListener("click", () => {
+          editorQuestionIndex = Number(el.dataset.idx);
+          renderQuestionList();
+          loadEditorQuestion();
+        });
+      });
+      loadEditorQuestion();
+    }
+
+    function clearEditorForm() {
+      document.getElementById("editPrompt").value = "";
+      document.getElementById("editNote").value = "";
+      document.getElementById("editId").value = "";
+      document.getElementById("editOptions").innerHTML = "";
+    }
+
+    function loadEditorQuestion() {
+      const questions = QUIZ_DATA.handlungsfelder[editorCurrentHf].questions;
+      const q = questions[editorQuestionIndex];
+      if (!q) return clearEditorForm();
+      document.getElementById("editPrompt").value = q.prompt || "";
+      document.getElementById("editNote").value = q.note || "";
+      document.getElementById("editId").value = q.id || "";
+      const wrap = document.getElementById("editOptions");
+      wrap.innerHTML = "";
+      q.options.forEach((opt, idx) => addOptionEditorRow(opt.text, !!opt.correct, idx));
+    }
+
+    function addOptionEditorRow(text = "", correct = false) {
+      const wrap = document.getElementById("editOptions");
+      const row = document.createElement("div");
+      row.className = "option-edit";
+      row.innerHTML = `
+        <input type="checkbox" ${correct ? "checked" : ""} title="richtige Antwort" />
+        <input type="text" value="${(text || "").replace(/"/g, '&quot;')}" placeholder="Antworttext" />
+        <button class="danger" type="button">Entfernen</button>
+      `;
+      row.querySelector("button").addEventListener("click", () => row.remove());
+      wrap.appendChild(row);
+    }
+
+    function collectEditorForm() {
+      const prompt = document.getElementById("editPrompt").value.trim();
+      const note = document.getElementById("editNote").value.trim();
+      const id = document.getElementById("editId").value.trim();
+      const optionRows = [...document.querySelectorAll("#editOptions .option-edit")];
+      const options = optionRows.map(row => {
+        const [check, text] = row.querySelectorAll("input");
+        return { text: text.value.trim(), correct: check.checked };
+      }).filter(opt => opt.text);
+
+      const correctCount = options.filter(o => o.correct).length;
+      const multiple = correctCount > 1;
+
+      return { id, prompt, note, options, correctCount, multiple };
+    }
+
+    function saveEditorQuestion() {
+      const q = collectEditorForm();
+      if (!q.prompt) return alert("Bitte einen Fragetext eingeben.");
+      if (q.options.length < 2) return alert("Bitte mindestens 2 Antworten anlegen.");
+      if (q.correctCount < 1) return alert("Bitte mindestens 1 richtige Antwort markieren.");
+      if (!q.id) q.id = `${editorCurrentHf}-${Date.now()}`;
+
+      const questions = QUIZ_DATA.handlungsfelder[editorCurrentHf].questions;
+      questions[editorQuestionIndex] = q;
+      saveData();
+      renderCards();
+      renderQuestionList();
+      alert("Frage gespeichert.");
+    }
+
+    function openEditor() {
+      populateEditorHfSelect();
+      renderQuestionList();
+      showView("editor");
+    }
+
+    document.getElementById("jumpBtn").addEventListener("click", () => {
+      saveCurrentAnswer();
+      const target = Math.min(currentQuestions.length, Math.max(1, Number(jumpToQuestion.value || 1)));
+      currentIndex = target - 1;
+      renderQuestion();
+    });
+
+    jumpToQuestion.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") document.getElementById("jumpBtn").click();
+    });
+
+    prevBtn.addEventListener("click", () => {
+      saveCurrentAnswer();
+      if (currentIndex > 0) {
+        currentIndex -= 1;
+        renderQuestion();
+      }
+    });
+
+    nextBtn.addEventListener("click", () => {
+      saveCurrentAnswer();
+      if (currentIndex < currentQuestions.length - 1) {
+        currentIndex += 1;
+        renderQuestion();
+      }
+    });
+
+    finishBtn.addEventListener("click", () => {
+      saveCurrentAnswer();
+      showResults();
+    });
+
+    document.getElementById("startBtn").addEventListener("click", () => startQuiz("single"));
+    document.getElementById("startAllBtn").addEventListener("click", () => startQuiz("all"));
+    document.getElementById("examA").addEventListener("click", () => startExam("A"));
+    document.getElementById("examB").addEventListener("click", () => startExam("B"));
+    document.getElementById("examC").addEventListener("click", () => startExam("C"));
+    document.getElementById("restartBtn").addEventListener("click", () => { stopExamMode(); showView("setup"); });
+    document.getElementById("homeBtn").addEventListener("click", () => {
+      if (confirm("Willst du wirklich zurück zum Hauptmenü? Der aktuelle Durchlauf wird beendet.")) { stopExamMode(); showView("setup"); }
+    });
+    document.getElementById("resultHomeBtn").addEventListener("click", () => { stopExamMode(); showView("setup"); });
+    document.getElementById("openEditorBtn").addEventListener("click", openEditor);
+    document.getElementById("editorHomeBtn").addEventListener("click", () => { stopExamMode(); showView("setup"); });
+
+    document.getElementById("editorHfSelect").addEventListener("change", (e) => {
+      editorCurrentHf = e.target.value;
+      editorQuestionIndex = 0;
+      renderQuestionList();
+    });
+
+    document.getElementById("newQuestionBtn").addEventListener("click", () => {
+      const questions = QUIZ_DATA.handlungsfelder[editorCurrentHf].questions;
+      const newQuestion = {
+        id: `${editorCurrentHf}-NEU-${questions.length + 1}`,
+        prompt: "",
+        note: "",
+        multiple: false,
+        correctCount: 1,
+        options: [
+          { text: "", correct: true },
+          { text: "", correct: false }
+        ]
+      };
+      questions.push(newQuestion);
+      editorQuestionIndex = questions.length - 1;
+      saveData();
+      renderQuestionList();
+    });
+
+    document.getElementById("addOptionBtn").addEventListener("click", () => addOptionEditorRow("", false));
+
+    document.getElementById("saveQuestionBtn").addEventListener("click", saveEditorQuestion);
+
+    document.getElementById("deleteQuestionBtn").addEventListener("click", () => {
+      const questions = QUIZ_DATA.handlungsfelder[editorCurrentHf].questions;
+      if (!questions.length) return;
+      if (!confirm("Diese Frage wirklich löschen?")) return;
+      questions.splice(editorQuestionIndex, 1);
+      editorQuestionIndex = Math.max(0, editorQuestionIndex - 1);
+      saveData();
+      renderCards();
+      renderQuestionList();
+    });
+
+    document.getElementById("resetDataBtn").addEventListener("click", () => {
+      if (!confirm("Alle eigenen Änderungen löschen und die Originalfragen wiederherstellen?")) return;
+      localStorage.removeItem(STORAGE_KEY);
+      QUIZ_DATA = deepClone(DEFAULT_QUIZ_DATA);
+      editorCurrentHf = "HF1";
+      editorQuestionIndex = 0;
+      renderCards();
+      populateEditorHfSelect();
+      renderQuestionList();
+      alert("Originalfragen wurden wiederhergestellt.");
+    });
+
+    renderCards();
+    populateEditorHfSelect();
+  </script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./service-worker.js').catch(function (err) {
+        console.log('Service Worker Registrierung fehlgeschlagen:', err);
+      });
+    });
+  }
+</script>
+
+</body>
+</html>
